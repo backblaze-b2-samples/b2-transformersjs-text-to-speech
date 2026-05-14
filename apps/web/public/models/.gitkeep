@@ -1,0 +1,9 @@
+# Kokoro ONNX weights are NOT bundled into the repo.
+#
+# Transformers.js downloads them from Hugging Face
+# (onnx-community/Kokoro-82M-v1.0-ONNX) into the browser's IndexedDB on
+# the user's first synthesis. The cache persists across sessions; only
+# the very first generation pays the ~80 MB download cost.
+#
+# This directory exists so the path is stable for future offline-mode
+# work. Do not commit ONNX weights here.

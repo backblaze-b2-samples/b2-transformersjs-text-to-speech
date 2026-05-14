@@ -1,0 +1,24 @@
+[
+  {
+    "corsRuleName": "browserTtsUploads",
+    "allowedOrigins": ["http://localhost:3000", "http://localhost:3001"],
+    "allowedOperations": [
+      "s3_put",
+      "s3_get",
+      "s3_head",
+      "s3_delete"
+    ],
+    "allowedHeaders": [
+      "Content-Type",
+      "x-amz-meta-voice-id",
+      "x-amz-meta-char-count",
+      "x-amz-meta-duration-ms",
+      "x-amz-meta-model-id",
+      "x-amz-meta-text-preview",
+      "x-amz-meta-generated-at",
+      "Authorization"
+    ],
+    "exposeHeaders": ["ETag"],
+    "maxAgeSeconds": 3600
+  }
+]

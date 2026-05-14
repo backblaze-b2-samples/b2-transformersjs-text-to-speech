@@ -1,0 +1,7 @@
+{
+  "name": "@b2-transformersjs-text-to-speech/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/types.ts",
+  "types": "./src/types.ts"
+}
