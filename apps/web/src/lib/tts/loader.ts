@@ -37,14 +37,15 @@ export interface SynthesizeResult {
  *   2. Cache a single `KokoroTTS` instance per dtype.
  *   3. Stream chunks for long text and concatenate to one Float32Array.
  *
- * Until that ships, this stub throws so consumers can wire up loading /
- * error states without accidentally shipping silent audio.
+ * Until that ships, this stub throws a clear, user-facing message so the
+ * Synthesize form can surface an inline `ErrorState` instead of crashing
+ * the React tree. Tracked in `docs/exec-plans/tech-debt-tracker.md`.
  */
 export async function synthesize(
   _options: SynthesizeOptions,
 ): Promise<SynthesizeResult> {
   throw new Error(
-    "Kokoro loader not implemented yet — see docs/features/tts-synthesis.md",
+    "Kokoro TTS pipeline is not yet wired in this scaffold. See docs/exec-plans/tech-debt-tracker.md.",
   );
 }
 

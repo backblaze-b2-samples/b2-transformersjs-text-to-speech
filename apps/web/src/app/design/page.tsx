@@ -10,8 +10,8 @@ export default function DesignPage() {
       <div className="animate-fade-in border-b border-border pb-5">
         <h1 className="page-title">Design System</h1>
         <p className="text-sm text-muted-foreground mt-1.5">
-          Every token, primitive, AI element, and pattern in this starter. Use
-          this page as a living style guide as the kit grows.
+          Every token, primitive, AI element, and pattern in this sample. Use
+          this page as a living style guide as the design system evolves.
         </p>
       </div>
       <div className="animate-fade-in-up stagger-2 space-y-12">

@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -20,255 +15,175 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { DangerZone } from "./danger-zone";
+import { DEFAULT_VOICE_ID, VOICES } from "@/lib/tts/voices";
+import type { ModelDtype } from "@/lib/tts/loader";
+import { preloadModel } from "@/lib/tts/loader";
+import type { TtsSettings } from "@b2-transformersjs-text-to-speech/shared";
 
-const settingsSchema = z.object({
-  displayName: z
-    .string()
-    .min(2, "Display name must be at least 2 characters")
-    .max(50),
-  bio: z.string().max(160, "Bio must be 160 characters or fewer").optional(),
-  theme: z.enum(["light", "dark", "system"]),
-  defaultView: z.enum(["grid", "list", "tree"]),
-  emailOnUpload: z.boolean(),
-  warnNearQuota: z.boolean(),
-  quotaThreshold: z
-    .string()
-    .regex(/^\d+$/, "Must be a number")
-    .refine((v) => {
-      const n = Number(v);
-      return n >= 50 && n <= 95;
-    }, "Must be between 50 and 95"),
-});
+const STORAGE_KEY = "b2-tts:settings";
 
-type SettingsValues = z.infer<typeof settingsSchema>;
-
-const defaultValues: SettingsValues = {
-  displayName: "Anonymous",
-  bio: "",
-  theme: "system",
-  defaultView: "tree",
-  emailOnUpload: false,
-  warnNearQuota: true,
-  quotaThreshold: "80",
+const DEFAULTS: TtsSettings = {
+  defaultVoice: DEFAULT_VOICE_ID,
+  defaultDtype: "q8",
+  preloadOnAppLoad: false,
 };
 
-export function SettingsForm() {
-  const [submitting, setSubmitting] = useState(false);
-  const form = useForm<SettingsValues>({
-    resolver: zodResolver(settingsSchema),
-    defaultValues,
-  });
+function loadSettings(): TtsSettings {
+  if (typeof window === "undefined") return DEFAULTS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULTS;
+    const parsed = JSON.parse(raw) as Partial<TtsSettings>;
+    return {
+      defaultVoice: parsed.defaultVoice ?? DEFAULTS.defaultVoice,
+      defaultDtype: parsed.defaultDtype ?? DEFAULTS.defaultDtype,
+      preloadOnAppLoad: parsed.preloadOnAppLoad ?? DEFAULTS.preloadOnAppLoad,
+    };
+  } catch {
+    return DEFAULTS;
+  }
+}
 
-  const onSubmit = async (values: SettingsValues) => {
-    setSubmitting(true);
-    // Demo-only — wire to a real API endpoint when you add one
-    await new Promise((r) => setTimeout(r, 400));
-    setSubmitting(false);
+export function SettingsForm() {
+  const [settings, setSettings] = useState<TtsSettings>(DEFAULTS);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setSettings(loadSettings());
+    setHydrated(true);
+  }, []);
+
+  function update<K extends keyof TtsSettings>(key: K, value: TtsSettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function onSave() {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    }
     toast.success("Settings saved", {
-      description: `Display name set to "${values.displayName}"`,
+      description: "Stored locally in this browser.",
     });
-  };
+    // Honor the preload toggle immediately so the user sees it take effect.
+    if (settings.preloadOnAppLoad) {
+      preloadModel(settings.defaultDtype).catch(() => {
+        // preloadModel is a no-op stub today; ignore errors.
+      });
+    }
+  }
+
+  function onReset() {
+    setSettings(DEFAULTS);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+    toast.success("Settings reset to defaults");
+  }
+
+  if (!hydrated) {
+    // Avoid SSR/CSR mismatch — localStorage reads only happen on the client.
+    return null;
+  }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Profile */}
-        <Card>
-          <CardHeader className="border-b border-border py-4 px-5">
-            <CardTitle className="card-title">Profile</CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4">
-            <FormField
-              control={form.control}
-              name="displayName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Display name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Your name" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Shown in activity logs and share links.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="bio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bio</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="A short description of this workspace"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>Max 160 characters.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Preferences */}
-        <Card>
-          <CardHeader className="border-b border-border py-4 px-5">
-            <CardTitle className="card-title">Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 space-y-6">
-            <FormField
-              control={form.control}
-              name="theme"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Theme</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex gap-6"
-                    >
-                      {(["light", "dark", "system"] as const).map((t) => (
-                        <label
-                          key={t}
-                          className="flex items-center gap-2 text-sm capitalize cursor-pointer"
-                        >
-                          <RadioGroupItem value={t} />
-                          {t}
-                        </label>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="defaultView"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Default file view</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-60">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="tree">Tree</SelectItem>
-                      <SelectItem value="list">List</SelectItem>
-                      <SelectItem value="grid">Grid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Applied when you open the Files page.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="emailOnUpload"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-md border border-border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>Email me on every upload</FormLabel>
-                    <FormDescription>
-                      You&apos;ll get a receipt for each successful upload.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="warnNearQuota"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start gap-3">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="grid gap-1.5 leading-none">
-                    <FormLabel>Warn me when approaching quota</FormLabel>
-                    <FormDescription>
-                      Shows a banner once usage crosses your threshold.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="quotaThreshold"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quota warning threshold (%)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={50}
-                      max={95}
-                      className="w-32 font-mono tabular-nums"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>Between 50 and 95.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <DangerZone />
-
-        {/* Action bar */}
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => form.reset(defaultValues)}
+    <div className="space-y-6">
+      {/* Voice */}
+      <Card>
+        <CardHeader className="border-b border-border py-4 px-5">
+          <CardTitle className="card-title">Default voice</CardTitle>
+        </CardHeader>
+        <CardContent className="p-5 space-y-2">
+          <Label htmlFor="default-voice">Voice</Label>
+          <Select
+            value={settings.defaultVoice}
+            onValueChange={(v) => update("defaultVoice", v)}
           >
-            Reset
-          </Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Saving..." : "Save changes"}
-          </Button>
-        </div>
-      </form>
-    </Form>
+            <SelectTrigger id="default-voice" className="w-72">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VOICES.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.name} — {v.language}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Pre-selected on the Synthesize page. You can still pick a different
+            voice per generation.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Model quantization */}
+      <Card>
+        <CardHeader className="border-b border-border py-4 px-5">
+          <CardTitle className="card-title">Model quantization</CardTitle>
+        </CardHeader>
+        <CardContent className="p-5 space-y-3">
+          <Label>Default dtype</Label>
+          <RadioGroup
+            value={settings.defaultDtype}
+            onValueChange={(v) => update("defaultDtype", v as ModelDtype)}
+            className="flex flex-wrap gap-6"
+          >
+            {(
+              [
+                { id: "q4", label: "q4 — smallest (~40 MB), lowest fidelity" },
+                { id: "q8", label: "q8 — balanced (~80 MB), recommended" },
+                { id: "fp16", label: "fp16 — largest (~160 MB), highest fidelity" },
+              ] as const
+            ).map((opt) => (
+              <label
+                key={opt.id}
+                className="flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <RadioGroupItem value={opt.id} />
+                <span className="font-mono text-xs">{opt.id}</span>
+                <span className="text-muted-foreground">— {opt.label.split("— ")[1]}</span>
+              </label>
+            ))}
+          </RadioGroup>
+          <p className="text-xs text-muted-foreground">
+            Kokoro on Transformers.js ships <span className="font-mono">q4</span>,{" "}
+            <span className="font-mono">q8</span>, and <span className="font-mono">fp16</span>{" "}
+            variants. Full-precision (fp32) is too large for the browser.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Preload */}
+      <Card>
+        <CardHeader className="border-b border-border py-4 px-5">
+          <CardTitle className="card-title">Preload</CardTitle>
+        </CardHeader>
+        <CardContent className="p-5">
+          <div className="flex flex-row items-center justify-between rounded-md border border-border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="preload-toggle">Preload model on app load</Label>
+              <p className="text-xs text-muted-foreground">
+                Starts downloading the ONNX weights when the app first mounts so
+                the first Generate click is instant. Costs bandwidth up front.
+              </p>
+            </div>
+            <Switch
+              id="preload-toggle"
+              checked={settings.preloadOnAppLoad}
+              onCheckedChange={(v) => update("preloadOnAppLoad", v)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onReset}>
+          Reset
+        </Button>
+        <Button type="button" onClick={onSave}>
+          Save changes
+        </Button>
+      </div>
+    </div>
   );
 }

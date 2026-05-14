@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.service.library import (
-    KeyError_,
+    InvalidKeyError,
     NotFoundError,
     get_activity,
     get_download_url,
@@ -50,7 +50,7 @@ async def library_activity_endpoint(days: int = 7):
 async def playback_url_endpoint(key: str):
     try:
         return get_playback_url(key)
-    except KeyError_ as e:
+    except InvalidKeyError as e:
         raise HTTPException(status_code=400, detail=e.detail) from None
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.detail) from None
@@ -60,7 +60,7 @@ async def playback_url_endpoint(key: str):
 async def download_url_endpoint(key: str):
     try:
         return get_download_url(key)
-    except KeyError_ as e:
+    except InvalidKeyError as e:
         raise HTTPException(status_code=400, detail=e.detail) from None
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.detail) from None
@@ -70,7 +70,7 @@ async def download_url_endpoint(key: str):
 async def delete_library_endpoint(key: str):
     try:
         remove(key)
-    except KeyError_ as e:
+    except InvalidKeyError as e:
         raise HTTPException(status_code=400, detail=e.detail) from None
     except RuntimeError:
         raise HTTPException(

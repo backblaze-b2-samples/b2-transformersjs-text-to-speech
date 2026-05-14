@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.service.library import KeyError_, validate_key
+from app.service.library import InvalidKeyError, validate_key
 
 
 def test_valid_keys_pass():
@@ -23,5 +23,5 @@ def test_bad_keys_are_rejected():
         "generations/2026/05/UPPERCASE.wav",  # hex must be lowercase
     ]
     for k in bad:
-        with pytest.raises(KeyError_):
+        with pytest.raises(InvalidKeyError):
             validate_key(k)

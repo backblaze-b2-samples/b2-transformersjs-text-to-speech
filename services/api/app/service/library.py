@@ -31,7 +31,7 @@ _KEY_RE = re.compile(r"^generations/\d{4}/\d{2}/[0-9a-f]+\.wav$")
 _DANGEROUS_KEY_RE = re.compile(r"(\.\./|/\.\.|\\|%2e%2e|%00|\x00)")
 
 
-class KeyError_(Exception):
+class InvalidKeyError(Exception):
     """Raised when a key is invalid or out of scope."""
 
     def __init__(self, detail: str = "Invalid key"):
@@ -48,13 +48,13 @@ class NotFoundError(Exception):
 def validate_key(key: str) -> None:
     """Reject anything that isn't a well-formed generations/ key."""
     if not key:
-        raise KeyError_("Empty key")
+        raise InvalidKeyError("Empty key")
     if _DANGEROUS_KEY_RE.search(key.lower()):
-        raise KeyError_("Path traversal pattern in key")
+        raise InvalidKeyError("Path traversal pattern in key")
     if not key.startswith(settings.generations_prefix):
-        raise KeyError_("Key outside generations/ prefix")
+        raise InvalidKeyError("Key outside generations/ prefix")
     if not _KEY_RE.match(key):
-        raise KeyError_("Malformed generations/ key")
+        raise InvalidKeyError("Malformed generations/ key")
 
 
 def list_recent(limit: int = 100) -> list[Generation]:

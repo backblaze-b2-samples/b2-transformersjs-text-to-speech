@@ -26,13 +26,13 @@ export function DesignAI() {
                 <Bot className="h-3.5 w-3.5" />
               </span>
               <div className="chat-bubble assistant">
-                Hi — I can help you search your bucket, summarize activity,
-                or draft storage policies. What&apos;s on your mind?
+                Hi — paste a paragraph and I&apos;ll read it aloud, or tell me
+                what kind of voice you want. What&apos;s on your mind?
               </div>
             </div>
             <div className="flex justify-end animate-bubble-in">
               <div className="chat-bubble user">
-                Summarize my storage usage this week.
+                Read this paragraph aloud.
               </div>
             </div>
             <div className="flex items-start gap-2 animate-bubble-in">
@@ -62,15 +62,15 @@ export function DesignAI() {
             <div className="flex flex-wrap gap-2">
               <span className="prompt-chip">
                 <Wand2 className="h-3.5 w-3.5" />
-                Summarize this bucket
+                Read this paragraph aloud
               </span>
               <span className="prompt-chip">
                 <MessageSquare className="h-3.5 w-3.5" />
-                Explain presigned URLs
+                Compare voices for a podcast intro
               </span>
               <span className="prompt-chip">
                 <Bot className="h-3.5 w-3.5" />
-                Draft a lifecycle rule
+                Pick a UK-English voice
               </span>
             </div>
             <p className="text-xs text-muted-foreground pt-2">

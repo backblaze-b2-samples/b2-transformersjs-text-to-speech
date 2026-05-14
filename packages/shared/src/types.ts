@@ -66,3 +66,17 @@ export interface PlaybackUrlResponse {
   url: string;
   expires_in: number;
 }
+
+/**
+ * Client-only preferences persisted to `localStorage`. The TTS pipeline runs
+ * entirely in the browser, so these never reach the API. Mirrored by
+ * `apps/web/src/components/settings/settings-form.tsx`.
+ */
+export interface TtsSettings {
+  /** Default voice ID, pre-selected on the Synthesize page. */
+  defaultVoice: string;
+  /** Kokoro ONNX quantization. Full-precision (fp32) is too large for browsers. */
+  defaultDtype: "q4" | "q8" | "fp16";
+  /** If true, the model starts downloading on app mount instead of on first Generate. */
+  preloadOnAppLoad: boolean;
+}

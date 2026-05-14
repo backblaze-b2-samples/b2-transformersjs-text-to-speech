@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorState } from "@/components/ui/error-state";
 import { VoicePicker } from "./voice-picker";
 import { ApiError, presignUpload, uploadToB2 } from "@/lib/api-client";
 import { useRefresh } from "@/lib/refresh-context";
@@ -25,6 +26,7 @@ export function SynthesizeForm() {
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<unknown>(null);
   const { triggerRefresh } = useRefresh();
 
   const busy = status === "loading-model" || status === "synthesizing" || status === "uploading";
@@ -34,6 +36,7 @@ export function SynthesizeForm() {
       toast.error("Type something to synthesize first.");
       return;
     }
+    setError(null);
     setStatus("loading-model");
     setAudioUrl(null);
 
@@ -64,7 +67,11 @@ export function SynthesizeForm() {
       });
       triggerRefresh();
     } catch (err) {
+      // Catch every failure mode — including the stubbed `synthesize()` that
+      // throws "pipeline not yet wired" — and surface it as an inline
+      // ErrorState so the page never throws into the React tree.
       setStatus("error");
+      setError(err instanceof Error ? err : new Error(String(err)));
       const detail =
         err instanceof ApiError
           ? err.message
@@ -148,6 +155,17 @@ export function SynthesizeForm() {
             {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated TTS */}
             <audio controls src={audioUrl} className="w-full" />
           </div>
+        )}
+
+        {status === "error" && error && (
+          <ErrorState
+            error={error}
+            title="Can't synthesize yet"
+            onRetry={() => {
+              setError(null);
+              setStatus("idle");
+            }}
+          />
         )}
       </CardContent>
     </Card>

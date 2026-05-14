@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, FileIcon } from "lucide-react";
+import { Inbox, AudioLines } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,51 +16,57 @@ import { Section } from "./section";
 const offlineError = new ApiError("Network error — check your connection", 0);
 const serverError = new ApiError("Internal Server Error", 500);
 
-type Row = { name: string; size: string; type: string };
+type Row = { textPreview: string; voice: string; duration: string; created: string };
 
+// Generation-shaped rows that mirror the real library page. Kept short so
+// the data-table demo reads at a glance.
 const sampleRows: Row[] = [
-  { name: "diagram.png", size: "124 KB", type: "Image" },
-  { name: "report.pdf", size: "892 KB", type: "PDF" },
-  { name: "budget.csv", size: "18 KB", type: "CSV" },
-  { name: "demo.mp4", size: "42.1 MB", type: "Video" },
-  { name: "notes.txt", size: "2 KB", type: "Text" },
-  { name: "archive.zip", size: "7.3 MB", type: "Archive" },
-  { name: "avatar.jpg", size: "89 KB", type: "Image" },
-  { name: "script.py", size: "4 KB", type: "Text" },
-  { name: "slides.pdf", size: "1.2 MB", type: "PDF" },
-  { name: "music.mp3", size: "3.8 MB", type: "Audio" },
-  { name: "cover.png", size: "212 KB", type: "Image" },
-  { name: "spec.md", size: "11 KB", type: "Text" },
+  { textPreview: "Welcome to the demo...", voice: "af_bella", duration: "4.2s", created: "2 min ago" },
+  { textPreview: "This is a longer paragraph used to test multi-line wrapping in the table cell...", voice: "am_michael", duration: "12.8s", created: "1 hr ago" },
+  { textPreview: "Hello, world!", voice: "bf_emma", duration: "1.4s", created: "3 hr ago" },
+  { textPreview: "Chapter one — the quick brown fox jumps over the lazy dog.", voice: "bm_george", duration: "7.6s", created: "yesterday" },
+  { textPreview: "Bonjour, comment allez-vous?", voice: "ff_siwis", duration: "2.9s", created: "2 days ago" },
+  { textPreview: "Podcast intro reading — sample take 03.", voice: "af_nicole", duration: "5.1s", created: "3 days ago" },
 ];
 
 const columns: ColumnDef<Row>[] = [
   {
-    accessorKey: "name",
-    header: "Filename",
-    size: 320,
+    accessorKey: "textPreview",
+    header: "Text preview",
+    size: 360,
     cell: ({ row }) => (
       <span className="flex items-center gap-2">
-        <FileIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="font-medium truncate">{row.original.name}</span>
+        <AudioLines className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="font-medium truncate">{row.original.textPreview}</span>
       </span>
     ),
   },
   {
-    accessorKey: "size",
-    header: "Size",
-    size: 120,
+    accessorKey: "voice",
+    header: "Voice",
+    size: 140,
+    cell: ({ row }) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {row.original.voice}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "duration",
+    header: "Duration",
+    size: 100,
     cell: ({ row }) => (
       <span className="font-mono text-xs text-muted-foreground tabular-nums">
-        {row.original.size}
+        {row.original.duration}
       </span>
     ),
   },
   {
-    accessorKey: "type",
-    header: "Type",
-    size: 120,
+    accessorKey: "created",
+    header: "Created",
+    size: 140,
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.type}</span>
+      <span className="text-muted-foreground">{row.original.created}</span>
     ),
   },
 ];

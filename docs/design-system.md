@@ -108,7 +108,7 @@ Always use `tabular-nums` for numeric columns.
 
 ## AI design elements
 
-The kit ships **primitives for AI/chat surfaces** but intentionally does
+This sample ships **primitives for AI/chat surfaces** but intentionally does
 *not* ship a live assistant. Compose these into your own drawer, inline
 panel, or modal — and brand them however you want (these defaults use the
 Primer palette so they drop into any Primer-styled app).
@@ -134,7 +134,7 @@ Primer palette so they drop into any Primer-styled app).
     <div className="chat-bubble assistant">Hi — how can I help?</div>
   </div>
   <div className="flex justify-end">
-    <div className="chat-bubble user">Summarize my bucket activity.</div>
+    <div className="chat-bubble user">Read this paragraph aloud.</div>
   </div>
 </div>
 ```
@@ -184,8 +184,8 @@ primitives added in their own subdirectory.
 
 Two persistent full-content states for "the data isn't there":
 
-- **`<EmptyState>`** — the underlying *data* is empty (no files in the
-  bucket, no results for a query). Friendly icon + copy + optional CTA.
+- **`<EmptyState>`** — the underlying *data* is empty (no generations yet,
+  no results for a query). Friendly icon + copy + optional CTA.
 - **`<ErrorState>`** — the *fetch* failed. Pass the thrown error (typically
   an `ApiError`) and `ErrorState` derives readable copy: status `0` becomes
   "Can't reach the API" with the configured base URL; `401`/`403` becomes
@@ -193,7 +193,7 @@ Two persistent full-content states for "the data isn't there":
   let the user re-trigger the fetch.
 
 Always prefer `ErrorState` over a stale `EmptyState` on fetch failure —
-showing "no files" when the API is unreachable is actively misleading.
+showing "no generations" when the API is unreachable is actively misleading.
 
 Both live in `components/ui/` next to the shadcn primitives.
 
