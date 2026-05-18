@@ -125,7 +125,9 @@ export function SettingsForm() {
           <p className="text-xs text-muted-foreground">
             Kokoro on Transformers.js ships <span className="font-mono">q4</span>,{" "}
             <span className="font-mono">q8</span>, and <span className="font-mono">fp16</span>{" "}
-            variants. Full-precision (fp32) is too large for the browser.
+            variants. This setting governs the WASM backend; with WebGPU on, the
+            pipeline always uses <span className="font-mono">fp32</span> (kokoro-js&apos;s
+            quantized variants produce garbled audio on WebGPU).
           </p>
         </CardContent>
       </Card>
@@ -147,7 +149,9 @@ export function SettingsForm() {
               <p className="text-xs text-muted-foreground">
                 Runs Kokoro on the GPU instead of WASM — typically 2–5× faster
                 on supported browsers (Chrome / Edge on a recent discrete GPU).
-                Falls back to WASM automatically if{" "}
+                Uses <span className="font-mono">fp32</span> weights (~320 MB,
+                downloaded on first use) regardless of the dtype above. Falls
+                back to WASM automatically if{" "}
                 <span className="font-mono">navigator.gpu</span> isn&apos;t
                 available.
                 {!webgpuAvailable && (

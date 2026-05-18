@@ -24,6 +24,12 @@ const LONG_TEXT_THRESHOLD = 400;
 type ModelDtype = "q8" | "q4" | "fp16";
 type ModelDevice = "wasm" | "webgpu";
 
+// Quantized variants (q4/q8) and fp16 produce garbled audio on the
+// WebGPU backend; kokoro-js's README explicitly recommends fp32 there.
+// Coerce inside the worker so the user-visible dtype setting can stay
+// a WASM-only choice without lying about what actually runs.
+type PipelineDtype = ModelDtype | "fp32";
+
 interface SynthesizeRequest {
   id: number;
   type: "synthesize";
@@ -68,18 +74,26 @@ export type WorkerResponse = SynthesizeResponse | AckResponse | ErrorResponse;
 // previous pick warm if they toggle back.
 const pipelineCache = new Map<string, Promise<KokoroTTS>>();
 
-function pipelineCacheKey(dtype: ModelDtype, device: ModelDevice): string {
+function pipelineCacheKey(dtype: PipelineDtype, device: ModelDevice): string {
   return `${dtype}|${device}`;
+}
+
+function effectiveDtype(dtype: ModelDtype, device: ModelDevice): PipelineDtype {
+  return device === "webgpu" ? "fp32" : dtype;
 }
 
 function getPipeline(
   dtype: ModelDtype,
   device: ModelDevice,
 ): Promise<KokoroTTS> {
-  const key = pipelineCacheKey(dtype, device);
+  const resolvedDtype = effectiveDtype(dtype, device);
+  const key = pipelineCacheKey(resolvedDtype, device);
   let cached = pipelineCache.get(key);
   if (!cached) {
-    cached = KokoroTTS.from_pretrained(MODEL_ID, { dtype, device });
+    cached = KokoroTTS.from_pretrained(MODEL_ID, {
+      dtype: resolvedDtype,
+      device,
+    });
     pipelineCache.set(key, cached);
   }
   return cached;

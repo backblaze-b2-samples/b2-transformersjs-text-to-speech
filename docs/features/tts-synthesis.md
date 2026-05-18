@@ -1,5 +1,5 @@
 <!-- last_verified: 2026-05-18 -->
-<!-- updated: 2026-05-18 — settings store wired end-to-end + WebGPU device flag -->
+<!-- updated: 2026-05-18 — WebGPU pipeline coerces dtype to fp32 (kokoro-js's quantized variants produce garbled audio on that backend) -->
 # Feature: TTS Synthesis
 
 ## Purpose
@@ -34,7 +34,7 @@ audio bytes routed through the API.
 - text: string (≤5000 chars, user input)
 - voice_id: string (one of the IDs in `voices.ts`) — pre-seeded from `settings.defaultVoice` on page mount
 - speed: number (0.5–1.5)
-- dtype: `q4` | `q8` | `fp16` — read from `settings.defaultDtype`
+- dtype: `q4` | `q8` | `fp16` — read from `settings.defaultDtype`; only applied on the WASM backend. The worker overrides to `fp32` when `device === "webgpu"` (kokoro-js's quantized + fp16 variants produce garbled audio on WebGPU)
 - device: `wasm` | `webgpu` — derived from `settings.useWebGPU` via `resolveDevice()` (falls back to `wasm` when `navigator.gpu` is absent)
 
 ## Outputs
