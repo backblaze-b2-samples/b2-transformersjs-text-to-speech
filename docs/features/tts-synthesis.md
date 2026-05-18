@@ -71,6 +71,14 @@ audio bytes routed through the API.
   `TextSplitterStream` for inputs > ~400 chars and concatenates the
   resulting Float32Array segments into one buffer before encoding to WAV
 - **Empty text** -> the form blocks submission with a toast
+- **Text containing newlines / control chars / non-ASCII** -> the API
+  sanitizes `text_preview` server-side in
+  `service/presign.py::_sanitize_header_value` (collapses everything
+  outside printable ASCII 0x20–0x7E to a single space) before it ever
+  reaches the `x-amz-meta-text-preview` header. Otherwise the browser
+  refuses the PUT with `setRequestHeader: '…' is not a valid HTTP
+  header field value` because HTTP forbids CR/LF/control bytes in
+  header values
 - **Model-load failure** -> error toast with retry; user can re-click
   Generate after the network recovers
 - **Worker crash** (e.g., WASM init failure) -> `loader.ts` listens

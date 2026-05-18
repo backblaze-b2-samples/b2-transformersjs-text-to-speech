@@ -7,6 +7,7 @@ PUT URL plus the exact headers the browser must echo back on its PUT.
 """
 
 import logging
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -17,6 +18,26 @@ from app.types import PresignRequest, PresignResponse
 logger = logging.getLogger(__name__)
 
 WAV_CONTENT_TYPE = "audio/wav"
+
+# HTTP header field-values forbid CR / LF / NUL and other control bytes
+# (RFC 9110 §5.5); browsers also reject non-ASCII via
+# `XMLHttpRequest.setRequestHeader`, and S3 user-metadata is ASCII-only.
+# A `text_preview` slice that contains any of those — common when the
+# user pastes prose with embedded newlines — would otherwise make the
+# browser throw `Failed to execute 'setRequestHeader' on
+# 'XMLHttpRequest': '…' is not a valid HTTP header field value` and the
+# PUT to B2 never leaves the page. Collapse anything outside printable
+# ASCII into a single space so the value the API signs is the same
+# value the browser is allowed to echo back.
+_HEADER_INVALID = re.compile(r"[^\x20-\x7E]+")
+_WHITESPACE_RUN = re.compile(r"\s+")
+
+
+def _sanitize_header_value(value: str, *, max_length: int) -> str:
+    """Return `value` reduced to a single line of printable ASCII."""
+    sanitized = _HEADER_INVALID.sub(" ", value)
+    sanitized = _WHITESPACE_RUN.sub(" ", sanitized).strip()
+    return sanitized[:max_length]
 
 
 def _build_key() -> str:
@@ -47,7 +68,9 @@ def _metadata_from_request(req: PresignRequest) -> dict[str, str]:
     if req.model_id:
         meta["model-id"] = req.model_id
     if req.text_preview:
-        meta["text-preview"] = req.text_preview
+        preview = _sanitize_header_value(req.text_preview, max_length=200)
+        if preview:
+            meta["text-preview"] = preview
     return meta
 
 

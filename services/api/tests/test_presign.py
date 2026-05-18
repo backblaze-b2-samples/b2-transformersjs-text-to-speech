@@ -58,6 +58,52 @@ def test_presign_omits_optional_metadata(monkeypatch):
     assert "x-amz-meta-char-count" not in resp.headers
 
 
+def test_presign_sanitizes_text_preview_for_http_header(monkeypatch):
+    """`text_preview` ends up in `x-amz-meta-text-preview`, which the
+    browser must echo back on the PUT. Newlines / control chars /
+    non-ASCII make `XMLHttpRequest.setRequestHeader` throw; sanitize
+    server-side so the value the API signs matches what the browser is
+    allowed to send."""
+    captured = {}
+
+    def fake_presign_put(*, key, content_type, metadata, expires_in):
+        captured["metadata"] = metadata
+        return "https://example.com/signed-put"
+
+    monkeypatch.setattr(presign_service, "presign_put", fake_presign_put)
+
+    req = PresignRequest(
+        text_preview="We're no strangers to love\nYou know the rules\r\nand so do I\tcafé",
+    )
+    resp = presign_service.create_upload_url(req)
+
+    preview = resp.headers["x-amz-meta-text-preview"]
+    # No CR / LF / TAB / NUL / non-ASCII survived.
+    assert "\n" not in preview
+    assert "\r" not in preview
+    assert "\t" not in preview
+    assert all(0x20 <= ord(c) <= 0x7E for c in preview), preview
+    # The string still reads naturally — runs of bad chars collapsed to one space.
+    assert preview.startswith("We're no strangers to love You know the rules and so do I")
+    # And the same value is in the metadata we asked the repo to sign.
+    assert captured["metadata"]["text-preview"] == preview
+
+
+def test_presign_drops_text_preview_when_only_control_chars(monkeypatch):
+    """A preview that's *entirely* control chars (e.g. someone pasted
+    only newlines) sanitizes to an empty string — don't emit a header
+    with an empty value."""
+    monkeypatch.setattr(
+        presign_service,
+        "presign_put",
+        lambda **_: "https://example.com/signed-put",
+    )
+
+    resp = presign_service.create_upload_url(PresignRequest(text_preview="\r\n\n\t\x00"))
+
+    assert "x-amz-meta-text-preview" not in resp.headers
+
+
 @pytest.mark.asyncio
 async def test_presign_upload_endpoint_returns_signed_payload(client, monkeypatch):
     monkeypatch.setattr(
