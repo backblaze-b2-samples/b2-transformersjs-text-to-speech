@@ -26,7 +26,7 @@ export function SynthesizeForm() {
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<Error | null>(null);
   const { triggerRefresh } = useRefresh();
 
   const busy = status === "loading-model" || status === "synthesizing" || status === "uploading";

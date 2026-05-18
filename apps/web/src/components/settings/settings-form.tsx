@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,7 @@ const DEFAULTS: TtsSettings = {
   preloadOnAppLoad: false,
 };
 
-function loadSettings(): TtsSettings {
-  if (typeof window === "undefined") return DEFAULTS;
+function readSettings(): TtsSettings {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
@@ -44,23 +43,52 @@ function loadSettings(): TtsSettings {
   }
 }
 
-export function SettingsForm() {
-  const [settings, setSettings] = useState<TtsSettings>(DEFAULTS);
-  const [hydrated, setHydrated] = useState(false);
+// In-tab subscribers — `storage` events only fire across tabs, so onSave/onReset
+// call notifySettingsChange() to refresh useSyncExternalStore consumers locally.
+const listeners = new Set<() => void>();
 
-  useEffect(() => {
-    setSettings(loadSettings());
-    setHydrated(true);
-  }, []);
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    listeners.delete(callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function notifySettingsChange() {
+  for (const cb of listeners) cb();
+}
+
+// useSyncExternalStore requires a stable snapshot reference between reads when
+// the underlying value hasn't changed. Cache by the raw localStorage string.
+let cachedRaw: string | null = null;
+let cachedSnapshot: TtsSettings = DEFAULTS;
+function getSnapshot(): TtsSettings {
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  cachedSnapshot = readSettings();
+  return cachedSnapshot;
+}
+
+function getServerSnapshot(): TtsSettings {
+  return DEFAULTS;
+}
+
+export function SettingsForm() {
+  const persisted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [draft, setDraft] = useState<TtsSettings | null>(null);
+  const settings = draft ?? persisted;
 
   function update<K extends keyof TtsSettings>(key: K, value: TtsSettings[K]) {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => ({ ...(prev ?? persisted), [key]: value }));
   }
 
   function onSave() {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    notifySettingsChange();
+    setDraft(null);
     toast.success("Settings saved", {
       description: "Stored locally in this browser.",
     });
@@ -73,16 +101,10 @@ export function SettingsForm() {
   }
 
   function onReset() {
-    setSettings(DEFAULTS);
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+    window.localStorage.removeItem(STORAGE_KEY);
+    notifySettingsChange();
+    setDraft(null);
     toast.success("Settings reset to defaults");
-  }
-
-  if (!hydrated) {
-    // Avoid SSR/CSR mismatch — localStorage reads only happen on the client.
-    return null;
   }
 
   return (

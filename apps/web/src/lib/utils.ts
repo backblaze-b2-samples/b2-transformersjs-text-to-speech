@@ -29,7 +29,7 @@ export function formatDate(dateStr: string) {
 
 /** Format a duration in milliseconds as a compact `m:ss` / `s.s s` string. */
 export function formatDuration(ms: number | null | undefined) {
-  if (ms == null) return "—";
+  if (ms === null || ms === undefined) return "—";
   const totalSeconds = ms / 1000;
   if (totalSeconds < 60) {
     return `${totalSeconds.toFixed(1)}s`;
