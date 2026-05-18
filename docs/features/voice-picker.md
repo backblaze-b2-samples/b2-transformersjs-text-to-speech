@@ -1,9 +1,12 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # Feature: Voice Picker
 
 ## Purpose
-Let the user choose from the Kokoro 82M voice catalog (50+ voices
-across 10 languages) before generating audio.
+Let the user choose from the Kokoro 82M voice catalog before
+generating audio. The in-browser pipeline is English-only: the
+checked-in catalog is restricted to en-US / en-GB because
+`kokoro-js` only bundles English voice metadata and a matching
+phonemizer (see [Edge cases](#edge-cases)).
 
 ## Used by
 - UI: `/synthesize` page (inside `SynthesizeForm`)

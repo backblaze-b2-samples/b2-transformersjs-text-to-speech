@@ -21,7 +21,7 @@ const MAX_CHARS = 5000;
 
 export function SynthesizeForm() {
   const [text, setText] = useState("");
-  const [voiceId, setVoiceId] = useState(DEFAULT_VOICE_ID);
+  const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE_ID);
   const [speed, setSpeed] = useState(1);
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
