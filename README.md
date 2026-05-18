@@ -6,7 +6,7 @@ by [Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=
 
 ![Synthesize](/docs/images/synthesize.png)
 
-> Sample output (Kokoro 82M, 24 kHz mono PCM): [▶ kokoro-sample.wav](docs/audio/kokoro-sample.wav)
+> Audition the voices before running the app: [Kokoro 82M v1.0 samples on Hugging Face](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX#voicessamples).
 
 The user types text, picks a voice from the Kokoro catalog, hits
 **Generate**, and the model — `onnx-community/Kokoro-82M-v1.0-ONNX` —
@@ -59,8 +59,7 @@ cd ../..
 
 Create a bucket and an application key in your
 **[B2 dashboard](https://secure.backblaze.com/b2_buckets.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2-tts-sample)**.
-The key needs `listFiles`, `readFiles`, `writeFiles`, `deleteFiles`,
-and `writeBucketCors`. Then:
+The key needs `Read & Write`. Then:
 
 ```bash
 cp .env.example .env
@@ -75,14 +74,6 @@ B2_KEY_ID=your-key-id
 B2_APPLICATION_KEY=your-key
 B2_BUCKET_NAME=your-bucket
 ```
-
-> The five variables above are the complete required set — there are
-> no aliases. `B2_REGION` should match the region segment of your
-> `B2_ENDPOINT` (e.g. `us-west-004` for `s3.us-west-004.backblazeb2.com`).
-> The API applies [`b2CorsRules.json`](b2CorsRules.json) to the bucket
-> at startup so browser → B2 direct uploads work without a separate
-> bootstrap step (default origins: `http://localhost:3000` / `:3001` —
-> edit for production).
 
 ### 3. Run
 
