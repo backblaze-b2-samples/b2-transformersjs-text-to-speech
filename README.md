@@ -1,8 +1,12 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # B2 Transformers.js Text-to-Speech
 
 A reference app showing how to ship a **client-side TTS pipeline backed
 by [Backblaze B2](https://www.backblaze.com/sign-up/ai-cloud-storage?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2-tts-sample) cloud storage**, with zero server-side GPU.
+
+![Synthesize](/docs/images/synthesize.png)
+
+> Sample output (Kokoro 82M, 24 kHz mono PCM): [▶ kokoro-sample.wav](docs/audio/kokoro-sample.wav)
 
 The user types text, picks a voice from the Kokoro catalog, hits
 **Generate**, and the model — `onnx-community/Kokoro-82M-v1.0-ONNX` —
@@ -10,20 +14,6 @@ runs in their browser via Transformers.js. The resulting WAV uploads
 straight from the browser to B2 via a short-lived presigned PUT URL.
 The FastAPI service signs URLs and lists / heads / deletes objects; it
 never sees the audio bytes.
-
-> Scaffolded from a Backblaze sample template; see
-> [`docs/exec-plans/completed/initial-scaffold.md`](docs/exec-plans/completed/initial-scaffold.md)
-> for the architecture delta.
-
-## What it looks like
-
-> Screenshots forthcoming — see [tech-debt-tracker](docs/exec-plans/tech-debt-tracker.md).
-> The `docs/images/` directory is intentionally empty in this round; do not
-> commit binary placeholders. README references screenshots with TODO notes:
-
-- TODO: `docs/images/synthesize.png` — composer + voice picker + live preview
-- TODO: `docs/images/library.png` — generation cards with play / download / delete
-- TODO: `docs/images/dashboard.png` — stats, activity chart, recent generations
 
 ## How it works
 
@@ -89,19 +79,12 @@ B2_BUCKET_NAME=your-bucket
 > The five variables above are the complete required set — there are
 > no aliases. `B2_REGION` should match the region segment of your
 > `B2_ENDPOINT` (e.g. `us-west-004` for `s3.us-west-004.backblazeb2.com`).
+> The API applies [`b2CorsRules.json`](b2CorsRules.json) to the bucket
+> at startup so browser → B2 direct uploads work without a separate
+> bootstrap step (default origins: `http://localhost:3000` / `:3001` —
+> edit for production).
 
-### 3. Apply bucket CORS
-
-Browser → B2 direct uploads need a CORS rule on the bucket. One-shot:
-
-```bash
-pnpm setup:cors
-```
-
-This applies [`b2CorsRules.json`](b2CorsRules.json) (CORS limited to
-`http://localhost:3000` / `:3001` by default — edit for production).
-
-### 4. Run
+### 3. Run
 
 ```bash
 pnpm dev
@@ -140,7 +123,6 @@ or placeholder `.env`, ports already taken).
 | Command | What it does |
 |---------|-------------|
 | `pnpm dev` | Start frontend + backend |
-| `pnpm setup:cors` | Apply `b2CorsRules.json` to your bucket |
 | `pnpm dev:web` | Frontend only |
 | `pnpm dev:api` | Backend only |
 | `pnpm build` | Build frontend |
@@ -163,6 +145,12 @@ or placeholder `.env`, ports already taken).
 | [docs/SECURITY.md](docs/SECURITY.md) | Security principles |
 | [docs/RELIABILITY.md](docs/RELIABILITY.md) | Reliability expectations |
 | [docs/exec-plans/](docs/exec-plans/) | Execution plans and tech debt tracker |
+
+## Credits
+
+Scaffolded from the [vibe-coding-starter-kit](https://github.com/backblaze-b2-samples/vibe-coding-starter-kit);
+see [`initial-scaffold.md`](docs/exec-plans/completed/initial-scaffold.md)
+for the architecture delta.
 
 ## License
 
