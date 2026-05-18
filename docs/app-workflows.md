@@ -7,7 +7,7 @@ User journeys inside the application.
 
 - User navigates to `/synthesize`
 - Types text in the composer (max 5000 chars; counter updates live)
-- Picks a voice from the language-grouped dropdown (50+ Kokoro voices)
+- Picks a voice from the language-grouped dropdown (Kokoro English voices, en-US / en-GB)
 - Adjusts speed (0.5x – 1.5x)
 - Clicks **Generate**
   - First time: browser downloads the Kokoro 82M ONNX weights (~80 MB)

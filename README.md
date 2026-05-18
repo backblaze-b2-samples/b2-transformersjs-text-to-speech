@@ -122,7 +122,7 @@ or placeholder `.env`, ports already taken).
 
 - [TTS Synthesis](docs/features/tts-synthesis.md) — Kokoro 82M in the browser
 - [Audio Library](docs/features/audio-library.md) — play / download / delete past generations
-- [Voice Picker](docs/features/voice-picker.md) — 50+ Kokoro voices across 10 languages
+- [Voice Picker](docs/features/voice-picker.md) — Kokoro English voices ([audition samples](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX#voicessamples))
 - [Dashboard](docs/features/dashboard.md) — generation count, total seconds, weekly activity
 - [Design System](docs/design-system.md) — tokens, primitives, AI elements, the blaze generating loader. Live preview at `/design`.
 
