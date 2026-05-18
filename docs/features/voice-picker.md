@@ -4,9 +4,10 @@
 ## Purpose
 Let the user choose from the Kokoro 82M voice catalog before
 generating audio. The in-browser pipeline is English-only: the
-checked-in catalog is restricted to en-US / en-GB because
-`kokoro-js` only bundles English voice metadata and a matching
-phonemizer (see [Edge cases](#edge-cases)).
+checked-in catalog mirrors the full set of voices `kokoro-js`
+bundles — 28 English entries (20 en-US, 8 en-GB). Non-English voices
+are excluded because `kokoro-js` only ships English voice metadata
+and a matching phonemizer (see [Edge cases](#edge-cases)).
 
 ## Used by
 - UI: `/synthesize` page (inside `SynthesizeForm`)
@@ -51,8 +52,9 @@ phonemizer (see [Edge cases](#edge-cases)).
 
 ## Verification
 - The catalog is data — no dedicated test file beyond the smoke e2e
-  (`apps/web/e2e/synthesize.spec.ts`). When you extend the catalog,
-  add a Playwright assertion that the new entry shows up.
+  (`apps/web/e2e/synthesize.spec.ts`). Each `id` is type-checked
+  against `kokoro-js`'s `GenerateOptions["voice"]` union, so a typo
+  or a non-bundled id fails the build, not the user.
 - Pass criteria: every entry in `VOICES` is reachable by the picker,
   and `findVoice(DEFAULT_VOICE_ID)` returns a defined value.
 
