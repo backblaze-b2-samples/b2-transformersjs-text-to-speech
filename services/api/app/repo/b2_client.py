@@ -6,6 +6,7 @@ the functions exported here — verified mechanically by
 `tests/test_structure.py::test_boto3_only_in_repo`.
 """
 
+import contextlib
 import functools
 import mimetypes
 from datetime import UTC, datetime
@@ -242,10 +243,8 @@ def get_generation_stats() -> dict:
                     )
                     duration_ms = head.get("Metadata", {}).get("duration-ms")
                     if duration_ms:
-                        try:
+                        with contextlib.suppress(TypeError, ValueError):
                             total_seconds += int(duration_ms) / 1000.0
-                        except (TypeError, ValueError):
-                            pass
                 except ClientError:
                     continue
             if not response.get("IsTruncated"):
