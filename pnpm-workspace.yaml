@@ -3,5 +3,7 @@ packages:
   - "packages/*"
 allowBuilds:
   msw: true
+  onnxruntime-node: true
+  protobufjs: true
   sharp: true
   unrs-resolver: true

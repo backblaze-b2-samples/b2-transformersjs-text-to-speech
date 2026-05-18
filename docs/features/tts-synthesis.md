@@ -13,7 +13,7 @@ audio bytes routed through the API.
 ## Core functions
 - `apps/web/src/components/tts/synthesize-form.tsx` — page-level form
 - `apps/web/src/components/tts/voice-picker.tsx` — Kokoro voice catalog picker
-- `apps/web/src/lib/tts/loader.ts` — Transformers.js Kokoro pipeline
+- `apps/web/src/lib/tts/loader.ts` — kokoro-js pipeline wrapper (chunked long-text via TextSplitterStream)
 - `apps/web/src/lib/tts/wav.ts` — Float32 PCM → 16-bit WAV blob
 - `apps/web/src/lib/tts/voices.ts` — curated voice catalog
 - `apps/web/src/lib/api-client.ts::presignUpload` — request signed PUT URL
@@ -59,9 +59,9 @@ audio bytes routed through the API.
   caches invalidate
 
 ## Edge cases
-- **Long text** -> the loader is expected to chunk inputs > ~1000
-  chars and concatenate audio. (Stub today; real implementation is
-  downstream work.)
+- **Long text** -> the loader streams sentence-sized chunks via
+  `TextSplitterStream` for inputs > ~400 chars and concatenates the
+  resulting Float32Array segments into one buffer before encoding to WAV
 - **Empty text** -> the form blocks submission with a toast
 - **Model-load failure** -> error toast with retry; user can re-click
   Generate after the network recovers

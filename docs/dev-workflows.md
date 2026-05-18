@@ -122,5 +122,7 @@ consumer of `useLibrary` / `useLibraryStats` re-fetches lazily.
   `Float32Array`, no knowledge of HF internals.
 - The library is `"use client"` only — never call `synthesize()` from a
   server component or a route handler.
-- The current `loader.ts` is a stub that throws. Real implementation
-  lands as downstream work — see the TTS Synthesis feature doc.
+- `loader.ts` wraps `kokoro-js` (which wraps `@huggingface/transformers`).
+  Pipeline instances are cached per dtype; inputs longer than ~400
+  characters stream sentence-sized chunks via `TextSplitterStream` and
+  the loader concatenates them into one Float32Array.
