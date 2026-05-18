@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # Feature: TTS Synthesis
 
 ## Purpose
@@ -13,7 +13,8 @@ audio bytes routed through the API.
 ## Core functions
 - `apps/web/src/components/tts/synthesize-form.tsx` — page-level form
 - `apps/web/src/components/tts/voice-picker.tsx` — Kokoro voice catalog picker
-- `apps/web/src/lib/tts/loader.ts` — kokoro-js pipeline wrapper (chunked long-text via TextSplitterStream)
+- `apps/web/src/lib/tts/loader.ts` — main-thread client that proxies requests to the worker (singleton `Worker`, correlation-id message protocol)
+- `apps/web/src/lib/tts/synthesis.worker.ts` — Web Worker that owns the `kokoro-js` pipeline; runs ONNX inference off the main thread and chunks long text via `TextSplitterStream`
 - `apps/web/src/lib/tts/wav.ts` — Float32 PCM → 16-bit WAV blob
 - `apps/web/src/lib/tts/voices.ts` — curated voice catalog
 - `apps/web/src/lib/api-client.ts::presignUpload` — request signed PUT URL
@@ -45,7 +46,9 @@ audio bytes routed through the API.
 - (First time only) Transformers.js downloads Kokoro 82M ONNX weights;
   status shows "Loading model..."
 - Browser tokenizes the text and runs ONNX inference for the chosen
-  voice, returning a Float32 PCM mono buffer
+  voice inside a dedicated Web Worker, returning a Float32 PCM mono
+  buffer (transferred back to the main thread as a transferable
+  `ArrayBuffer`, so the page stays responsive throughout)
 - `wav.ts::encodeWav` wraps the buffer in a 16-bit WAV at 24 kHz
 - Inline `<audio>` element plays the result so the user hears it
   immediately, before upload completes
@@ -65,6 +68,10 @@ audio bytes routed through the API.
 - **Empty text** -> the form blocks submission with a toast
 - **Model-load failure** -> error toast with retry; user can re-click
   Generate after the network recovers
+- **Worker crash** (e.g., WASM init failure) -> `loader.ts` listens
+  for the worker's `error` event and rejects every in-flight request,
+  so the form surfaces a real error instead of staying stuck on
+  "Synthesizing…"
 - **Network failure mid-PUT** -> error toast; presigned URL is valid
   for 10 min, retry succeeds without re-signing
 - **CORS not configured on the bucket** -> opaque CORS error in

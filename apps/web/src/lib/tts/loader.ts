@@ -1,17 +1,19 @@
 // Kokoro 82M model loader.
 //
-// Wraps `kokoro-js` (which itself wraps `@huggingface/transformers`) so
-// the rest of the UI can stay model-agnostic. The first `synthesize()`
-// call pays the ~80 MB ONNX download (cached in IndexedDB by
-// Transformers.js for subsequent sessions); later calls are instant.
+// Spawns a dedicated Web Worker (see `synthesis.worker.ts`) that owns
+// the `kokoro-js` pipeline and runs ONNX inference off the main thread.
+// Without the worker, a multi-second `generate()` call freezes the
+// whole tab — clicks, animations, and route changes all stall until
+// the synth finishes. With the worker, the main thread stays free.
+//
+// The first `synthesize()` call still pays the ~80 MB ONNX download
+// (cached in IndexedDB by Transformers.js for subsequent sessions);
+// later calls are instant.
 
-import type { GenerateOptions, KokoroTTS as KokoroTTSType } from "kokoro-js";
-
-// kokoro-js types `voice` as a finite literal union of voices it ships
-// with. The Kokoro model itself accepts more voice IDs at runtime, and
-// our `voices.ts` catalog includes a few extras (Japanese, Mandarin,
-// etc.). This alias keeps the rest of the file honest about the cast.
-type KokoroVoice = NonNullable<GenerateOptions["voice"]>;
+import type {
+  WorkerRequest,
+  WorkerResponse,
+} from "./synthesis.worker";
 
 export const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
@@ -32,26 +34,54 @@ export interface SynthesizeResult {
   voiceId: string;
 }
 
-// Chunk long inputs so we never sit on a 30-second blocking inference
-// call. Kokoro generates ~real-time on WASM, so each chunk under this
-// length keeps the UI thread responsive between segments.
-const LONG_TEXT_THRESHOLD = 400;
+let worker: Worker | null = null;
+let nextRequestId = 0;
+const pending = new Map<
+  number,
+  { resolve: (response: WorkerResponse) => void; reject: (err: Error) => void }
+>();
 
-// One pipeline instance per dtype. Reusing the instance is what makes
-// the 2nd+ synthesize() calls instant — switching dtype would force a
-// fresh ONNX load.
-const pipelineCache = new Map<ModelDtype, Promise<KokoroTTSType>>();
-
-async function getPipeline(dtype: ModelDtype): Promise<KokoroTTSType> {
-  let cached = pipelineCache.get(dtype);
-  if (!cached) {
-    // Lazy-import keeps the ~MB of WASM glue out of the SSR bundle.
-    cached = import("kokoro-js").then(({ KokoroTTS }) =>
-      KokoroTTS.from_pretrained(MODEL_ID, { dtype, device: "wasm" }),
-    );
-    pipelineCache.set(dtype, cached);
+function getWorker(): Worker {
+  if (worker) return worker;
+  if (typeof window === "undefined") {
+    throw new Error("Kokoro synthesis worker is only available in the browser.");
   }
-  return cached;
+  worker = new Worker(new URL("./synthesis.worker.ts", import.meta.url), {
+    type: "module",
+  });
+  worker.addEventListener("message", (event: MessageEvent<WorkerResponse>) => {
+    const data = event.data;
+    const handler = pending.get(data.id);
+    if (!handler) return;
+    pending.delete(data.id);
+    if (data.type === "error") {
+      handler.reject(new Error(data.message));
+    } else {
+      handler.resolve(data);
+    }
+  });
+  // If the worker crashes outright (e.g., WASM init failure), reject
+  // every in-flight request so the UI gets a real error instead of
+  // hanging on a button labeled "Synthesizing…".
+  worker.addEventListener("error", (event: ErrorEvent) => {
+    const err = new Error(event.message || "Synthesis worker crashed");
+    for (const handler of pending.values()) handler.reject(err);
+    pending.clear();
+  });
+  return worker;
+}
+
+function sendRequest<T extends WorkerResponse>(
+  build: (id: number) => WorkerRequest,
+): Promise<T> {
+  const id = ++nextRequestId;
+  return new Promise<T>((resolve, reject) => {
+    pending.set(id, {
+      resolve: (response) => resolve(response as T),
+      reject,
+    });
+    getWorker().postMessage(build(id));
+  });
 }
 
 export async function synthesize(
@@ -62,49 +92,23 @@ export async function synthesize(
     throw new Error("Cannot synthesize empty text.");
   }
 
-  const tts = await getPipeline(dtype);
-
-  if (text.length <= LONG_TEXT_THRESHOLD) {
-    const audio = await tts.generate(text, {
-      voice: voiceId as KokoroVoice,
-      speed,
-    });
-    return {
-      samples: audio.audio,
-      sampleRate: audio.sampling_rate,
-      modelId: MODEL_ID,
-      voiceId,
-    };
-  }
-
-  // Long text: stream sentence-sized chunks and concatenate. We collect
-  // first so the WAV encoder gets one contiguous Float32Array, matching
-  // the short-text path's contract.
-  const { TextSplitterStream } = await import("kokoro-js");
-  const splitter = new TextSplitterStream();
-  const stream = tts.stream(splitter, {
-    voice: voiceId as KokoroVoice,
+  const response = await sendRequest<
+    Extract<WorkerResponse, { type: "result" }>
+  >((id) => ({
+    id,
+    type: "synthesize",
+    voiceId,
+    text,
     speed,
-  });
-  splitter.push(text);
-  splitter.close();
+    dtype,
+  }));
 
-  const chunks: Float32Array[] = [];
-  let sampleRate = 24000;
-  for await (const { audio } of stream) {
-    chunks.push(audio.audio);
-    sampleRate = audio.sampling_rate;
-  }
-
-  const total = chunks.reduce((n, c) => n + c.length, 0);
-  const samples = new Float32Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    samples.set(c, offset);
-    offset += c.length;
-  }
-
-  return { samples, sampleRate, modelId: MODEL_ID, voiceId };
+  return {
+    samples: response.samples,
+    sampleRate: response.sampleRate,
+    modelId: MODEL_ID,
+    voiceId,
+  };
 }
 
 /**
@@ -112,5 +116,9 @@ export async function synthesize(
  * download cost. Safe to call repeatedly.
  */
 export async function preloadModel(dtype: ModelDtype = "q8"): Promise<void> {
-  await getPipeline(dtype);
+  await sendRequest<Extract<WorkerResponse, { type: "ack" }>>((id) => ({
+    id,
+    type: "preload",
+    dtype,
+  }));
 }
