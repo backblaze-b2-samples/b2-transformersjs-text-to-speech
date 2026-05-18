@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # Security
 
 Security principles and implementation for `b2-transformersjs-text-to-speech`.
@@ -41,10 +41,14 @@ path is `generate_presigned_url(...)` in `repo/b2_client.py`.
 
 ## Bucket CORS
 
-`b2CorsRules.json` in the repo root is the source of truth, applied
-via `pnpm setup:cors`. The default rule allows `s3_put`, `s3_get`,
-`s3_head`, `s3_delete` from `http://localhost:3000` / `:3001` only —
-edit it for production deployments.
+`b2CorsRules.json` in the repo root is the source of truth. The API
+applies it to the configured bucket at startup (FastAPI lifespan →
+`app/service/cors.py` → `repo.b2_client.put_bucket_cors`), so the rule
+moves in lockstep with the code. The default allows `s3_put`,
+`s3_get`, `s3_head`, `s3_delete` from `http://localhost:3000` /
+`:3001` only — edit it for production deployments. The application
+key needs `writeBucketCors`; the API fails fast at boot if the call is
+rejected.
 
 > If you set `allowedOrigins: ["*"]` while ALSO writing from the
 > browser, you've created a public write endpoint for anyone in the

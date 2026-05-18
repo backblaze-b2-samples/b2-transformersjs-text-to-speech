@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # Architecture
 
 ## Components
@@ -17,6 +17,8 @@
   - `/library/*` — list / head / delete generations
   - B2 S3 integration via boto3 (single user-agent: `(backblaze-b2-samples)`)
   - Health check endpoint with B2 connectivity verification
+  - Bucket CORS applied at startup from `b2CorsRules.json` so a fresh
+    clone is upload-ready without an out-of-band bootstrap step
   - Structured JSON logging with request tracing
   - Prometheus-format metrics endpoint
 - **packages/shared/** — TypeScript type definitions
@@ -151,7 +153,7 @@ See [docs/SECURITY.md](docs/SECURITY.md) for full security documentation.
 - Layered API handler: `services/api/app/runtime/presign.py`,
   `services/api/app/runtime/library.py`
 - Service orchestration: `services/api/app/service/presign.py`,
-  `services/api/app/service/library.py`
+  `services/api/app/service/library.py`, `services/api/app/service/cors.py`
 - B2 data access (repo layer): `services/api/app/repo/b2_client.py`
 - Pydantic models: `services/api/app/types/` (`generations.py`, `presign.py`, `formatting.py`)
 - Config (pydantic-settings): `services/api/app/config/settings.py`

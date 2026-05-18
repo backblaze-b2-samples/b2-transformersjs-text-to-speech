@@ -19,6 +19,10 @@ from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from app.runtime import health, library, metrics, presign  # noqa: E402
+from app.service import cors as cors_service  # noqa: E402
+
+REPO_ROOT = REPO_ROOT_ENV.parent
+CORS_RULES_FILE = REPO_ROOT / "b2CorsRules.json"
 
 # --- Startup validation ---
 # Required B2 settings are declared with empty-string defaults so that
@@ -70,6 +74,19 @@ async def lifespan(_app: "FastAPI"):
             + ", ".join(placeholders)
             + f". Edit {REPO_ROOT_ENV} with your real B2 credentials and restart."
         )
+
+    # Browser → B2 direct PUTs need a CORSRule on the bucket. Apply it at
+    # startup so a fresh clone "just works" after `pnpm dev` without an
+    # out-of-band bootstrap step. Idempotent; requires `writeBucketCors`.
+    try:
+        cors_service.apply_bucket_cors(CORS_RULES_FILE)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to apply bucket CORS rules from {CORS_RULES_FILE}. "
+            "Ensure the application key has `writeBucketCors`. "
+            f"Underlying error: {e}"
+        ) from e
+
     yield
 
 # --- Structured JSON logging ---

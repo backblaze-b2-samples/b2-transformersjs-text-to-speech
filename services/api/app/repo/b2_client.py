@@ -63,6 +63,26 @@ def check_connectivity() -> bool:
         return False
 
 
+def put_bucket_cors(cors_configuration: dict) -> None:
+    """Write the CORSConfiguration document to the configured bucket.
+
+    `cors_configuration` is the S3-shaped dict accepted directly by
+    `put_bucket_cors` (i.e. `{"CORSRules": [...]}`). Called at API
+    startup so browser→B2 direct PUTs work without an out-of-band
+    bootstrap step. The key needs `writeBucketCors`.
+    """
+    client = get_s3_client()
+    try:
+        client.put_bucket_cors(
+            Bucket=settings.b2_bucket_name,
+            CORSConfiguration=cors_configuration,
+        )
+    except ClientError as e:
+        raise RuntimeError(
+            f"B2 put_bucket_cors failed for '{settings.b2_bucket_name}': {e}"
+        ) from e
+
+
 # ---------------------------------------------------------------------
 # Presigned URLs — browser ↔ B2 direct
 # ---------------------------------------------------------------------

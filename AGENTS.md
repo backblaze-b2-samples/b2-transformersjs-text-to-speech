@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-05-14 -->
+<!-- last_verified: 2026-05-18 -->
 # AGENTS.md
 
 This is the authoritative control surface for all coding agents working
@@ -26,7 +26,7 @@ packages/shared/           Shared TypeScript types (mirrors Pydantic models)
 docs/                      System of record (features, workflows, security, reliability)
 docs/exec-plans/           Execution plans + tech debt tracker
 infra/railway/             Deployment config
-b2CorsRules.json           CORS rules applied to the bucket via `pnpm setup:cors`
+b2CorsRules.json           CORS rules applied to the bucket by the API at startup
 ```
 
 ## 2. Architectural invariants
@@ -90,7 +90,6 @@ New endpoints touch three files: `runtime/<router>.py`,
 ```bash
 # Run
 pnpm dev               # start both frontend and backend (preflight via pnpm doctor)
-pnpm setup:cors        # apply b2CorsRules.json to the bucket
 pnpm dev:web           # frontend only
 pnpm dev:api           # backend only
 
