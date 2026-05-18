@@ -1,4 +1,5 @@
 <!-- last_verified: 2026-05-18 -->
+<!-- updated: 2026-05-18 — settings store wired end-to-end + WebGPU device flag -->
 # Feature: TTS Synthesis
 
 ## Purpose
@@ -13,10 +14,12 @@ audio bytes routed through the API.
 ## Core functions
 - `apps/web/src/components/tts/synthesize-form.tsx` — page-level form
 - `apps/web/src/components/tts/voice-picker.tsx` — Kokoro voice catalog picker
-- `apps/web/src/lib/tts/loader.ts` — main-thread client that proxies requests to the worker (singleton `Worker`, correlation-id message protocol)
-- `apps/web/src/lib/tts/synthesis.worker.ts` — Web Worker that owns the `kokoro-js` pipeline; runs ONNX inference off the main thread and chunks long text via `TextSplitterStream`
+- `apps/web/src/lib/tts/loader.ts` — main-thread client that proxies requests to the worker (singleton `Worker`, correlation-id message protocol); `resolveDevice(useWebGPU)` decides whether the pipeline runs on WebGPU or WASM
+- `apps/web/src/lib/tts/synthesis.worker.ts` — Web Worker that owns the `kokoro-js` pipeline; runs ONNX inference off the main thread and chunks long text via `TextSplitterStream`; caches pipelines per `(dtype, device)`
 - `apps/web/src/lib/tts/wav.ts` — Float32 PCM → 16-bit WAV blob
 - `apps/web/src/lib/tts/voices.ts` — curated voice catalog
+- `apps/web/src/lib/tts/settings.ts` — shared TTS preferences store (`useTtsSettings()` hook backed by `useSyncExternalStore` over `localStorage`); the synthesize form, the settings page, and `<TtsPreloader />` all read from this single source
+- `apps/web/src/components/layout/tts-preloader.tsx` — mounted in `app/layout.tsx`; calls `preloadModel(dtype, device)` on app mount when `preloadOnAppLoad` is enabled
 - `apps/web/src/lib/api-client.ts::presignUpload` — request signed PUT URL
 - `apps/web/src/lib/api-client.ts::uploadToB2` — browser → B2 PUT helper
 - `services/api/app/runtime/presign.py` — FastAPI route
@@ -29,8 +32,10 @@ audio bytes routed through the API.
 
 ## Inputs
 - text: string (≤5000 chars, user input)
-- voice_id: string (one of the IDs in `voices.ts`)
+- voice_id: string (one of the IDs in `voices.ts`) — pre-seeded from `settings.defaultVoice` on page mount
 - speed: number (0.5–1.5)
+- dtype: `q4` | `q8` | `fp16` — read from `settings.defaultDtype`
+- device: `wasm` | `webgpu` — derived from `settings.useWebGPU` via `resolveDevice()` (falls back to `wasm` when `navigator.gpu` is absent)
 
 ## Outputs
 - A WAV Blob preview in the page (`<audio>` element)

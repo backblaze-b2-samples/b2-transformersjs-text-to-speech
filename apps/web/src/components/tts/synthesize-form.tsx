@@ -12,16 +12,20 @@ import { ErrorState } from "@/components/ui/error-state";
 import { VoicePicker } from "./voice-picker";
 import { ApiError, presignUpload, uploadToB2 } from "@/lib/api-client";
 import { useRefresh } from "@/lib/refresh-context";
-import { DEFAULT_VOICE_ID } from "@/lib/tts/voices";
-import { MODEL_ID, synthesize } from "@/lib/tts/loader";
+import { MODEL_ID, resolveDevice, synthesize } from "@/lib/tts/loader";
+import { useTtsSettings } from "@/lib/tts/settings";
 import { durationMs, encodeWav } from "@/lib/tts/wav";
 import type { GenerationStatus } from "@b2-transformersjs-text-to-speech/shared";
 
 const MAX_CHARS = 5000;
 
 export function SynthesizeForm() {
+  const settings = useTtsSettings();
   const [text, setText] = useState("");
-  const [voiceId, setVoiceId] = useState<string>(DEFAULT_VOICE_ID);
+  // Lazy-init from settings so the user's saved default voice is pre-selected
+  // each time they land on this page. The form remounts on navigation, so
+  // changes saved in /settings take effect on the next visit.
+  const [voiceId, setVoiceId] = useState<string>(() => settings.defaultVoice);
   const [speed, setSpeed] = useState(1);
   const [status, setStatus] = useState<GenerationStatus>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -42,7 +46,13 @@ export function SynthesizeForm() {
 
     try {
       setStatus("synthesizing");
-      const result = await synthesize({ voiceId, text, speed });
+      const result = await synthesize({
+        voiceId,
+        text,
+        speed,
+        dtype: settings.defaultDtype,
+        device: resolveDevice(settings.useWebGPU),
+      });
       const wav = encodeWav(result.samples, { sampleRate: result.sampleRate });
       const dur = durationMs(result.samples, result.sampleRate);
 

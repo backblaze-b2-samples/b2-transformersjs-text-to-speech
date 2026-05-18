@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Header } from "@/components/layout/header";
 import { HealthBanner } from "@/components/layout/health-banner";
+import { TtsPreloader } from "@/components/layout/tts-preloader";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryClientProvider } from "@/lib/query-client";
 import { RefreshProvider } from "@/lib/refresh-context";
@@ -49,6 +50,7 @@ export default function RootLayout({
                     </main>
                   </div>
                   <Toaster />
+                  <TtsPreloader />
                 </TooltipProvider>
               </SidebarProvider>
             </RefreshProvider>

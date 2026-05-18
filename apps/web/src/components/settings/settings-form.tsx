@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,94 +15,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEFAULT_VOICE_ID, VOICES } from "@/lib/tts/voices";
+import { VOICES } from "@/lib/tts/voices";
 import type { ModelDtype } from "@/lib/tts/loader";
-import { preloadModel } from "@/lib/tts/loader";
+import {
+  isWebGPUAvailable,
+  preloadModel,
+  resolveDevice,
+} from "@/lib/tts/loader";
+import {
+  resetSettings,
+  saveSettings,
+  useTtsSettings,
+} from "@/lib/tts/settings";
 import type { TtsSettings } from "@b2-transformersjs-text-to-speech/shared";
 
-const STORAGE_KEY = "b2-tts:settings";
-
-const DEFAULTS: TtsSettings = {
-  defaultVoice: DEFAULT_VOICE_ID,
-  defaultDtype: "q8",
-  preloadOnAppLoad: false,
-};
-
-function readSettings(): TtsSettings {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    const parsed = JSON.parse(raw) as Partial<TtsSettings>;
-    return {
-      defaultVoice: parsed.defaultVoice ?? DEFAULTS.defaultVoice,
-      defaultDtype: parsed.defaultDtype ?? DEFAULTS.defaultDtype,
-      preloadOnAppLoad: parsed.preloadOnAppLoad ?? DEFAULTS.preloadOnAppLoad,
-    };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
-// In-tab subscribers — `storage` events only fire across tabs, so onSave/onReset
-// call notifySettingsChange() to refresh useSyncExternalStore consumers locally.
-const listeners = new Set<() => void>();
-
-function subscribe(callback: () => void) {
-  listeners.add(callback);
-  window.addEventListener("storage", callback);
-  return () => {
-    listeners.delete(callback);
-    window.removeEventListener("storage", callback);
-  };
-}
-
-function notifySettingsChange() {
-  for (const cb of listeners) cb();
-}
-
-// useSyncExternalStore requires a stable snapshot reference between reads when
-// the underlying value hasn't changed. Cache by the raw localStorage string.
-let cachedRaw: string | null = null;
-let cachedSnapshot: TtsSettings = DEFAULTS;
-function getSnapshot(): TtsSettings {
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (raw === cachedRaw) return cachedSnapshot;
-  cachedRaw = raw;
-  cachedSnapshot = readSettings();
-  return cachedSnapshot;
-}
-
-function getServerSnapshot(): TtsSettings {
-  return DEFAULTS;
-}
-
 export function SettingsForm() {
-  const persisted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const persisted = useTtsSettings();
   const [draft, setDraft] = useState<TtsSettings | null>(null);
   const settings = draft ?? persisted;
+  const webgpuAvailable = isWebGPUAvailable();
 
   function update<K extends keyof TtsSettings>(key: K, value: TtsSettings[K]) {
     setDraft((prev) => ({ ...(prev ?? persisted), [key]: value }));
   }
 
   function onSave() {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    notifySettingsChange();
+    saveSettings(settings);
     setDraft(null);
     toast.success("Settings saved", {
       description: "Stored locally in this browser.",
     });
     // Honor the preload toggle immediately so the user sees it take effect.
     if (settings.preloadOnAppLoad) {
-      preloadModel(settings.defaultDtype).catch(() => {
-        // preloadModel is a no-op stub today; ignore errors.
+      preloadModel(
+        settings.defaultDtype,
+        resolveDevice(settings.useWebGPU),
+      ).catch(() => {
+        // Worker may not be ready yet; the on-mount preloader will retry.
       });
     }
   }
 
   function onReset() {
-    window.localStorage.removeItem(STORAGE_KEY);
-    notifySettingsChange();
+    resetSettings();
     setDraft(null);
     toast.success("Settings reset to defaults");
   }
@@ -172,6 +127,46 @@ export function SettingsForm() {
             <span className="font-mono">q8</span>, and <span className="font-mono">fp16</span>{" "}
             variants. Full-precision (fp32) is too large for the browser.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Acceleration */}
+      <Card>
+        <CardHeader className="border-b border-border py-4 px-5">
+          <CardTitle className="card-title">Acceleration</CardTitle>
+        </CardHeader>
+        <CardContent className="p-5">
+          <div className="flex flex-row items-center justify-between rounded-md border border-border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="webgpu-toggle">
+                Use WebGPU when available
+                <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                  experimental
+                </span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Runs Kokoro on the GPU instead of WASM — typically 2–5× faster
+                on supported browsers (Chrome / Edge on a recent discrete GPU).
+                Falls back to WASM automatically if{" "}
+                <span className="font-mono">navigator.gpu</span> isn&apos;t
+                available.
+                {!webgpuAvailable && (
+                  <>
+                    {" "}
+                    <span className="text-[var(--warning,_#a16207)]">
+                      This browser doesn&apos;t expose WebGPU; the setting will
+                      have no effect here.
+                    </span>
+                  </>
+                )}
+              </p>
+            </div>
+            <Switch
+              id="webgpu-toggle"
+              checked={settings.useWebGPU}
+              onCheckedChange={(v) => update("useWebGPU", v)}
+            />
+          </div>
         </CardContent>
       </Card>
 

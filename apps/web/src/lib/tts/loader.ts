@@ -18,12 +18,27 @@ import type {
 export const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
 export type ModelDtype = "q8" | "q4" | "fp16";
+export type ModelDevice = "wasm" | "webgpu";
+
+/** Best effort WebGPU detection. Reads only — never triggers a prompt. */
+export function isWebGPUAvailable(): boolean {
+  return typeof navigator !== "undefined" && "gpu" in navigator;
+}
+
+/** Resolve the device the worker should actually use. WebGPU is opt-in
+ *  via settings and silently falls back to WASM when the browser
+ *  doesn't expose `navigator.gpu`, so a stale preference never bricks
+ *  synthesis. */
+export function resolveDevice(useWebGPU: boolean): ModelDevice {
+  return useWebGPU && isWebGPUAvailable() ? "webgpu" : "wasm";
+}
 
 export interface SynthesizeOptions {
   voiceId: string;
   text: string;
   speed?: number; // 0.5–2.0
   dtype?: ModelDtype; // default `q8`
+  device?: ModelDevice; // default `wasm`
 }
 
 export interface SynthesizeResult {
@@ -87,7 +102,13 @@ function sendRequest<T extends WorkerResponse>(
 export async function synthesize(
   options: SynthesizeOptions,
 ): Promise<SynthesizeResult> {
-  const { voiceId, text, speed = 1, dtype = "q8" } = options;
+  const {
+    voiceId,
+    text,
+    speed = 1,
+    dtype = "q8",
+    device = "wasm",
+  } = options;
   if (!text.trim()) {
     throw new Error("Cannot synthesize empty text.");
   }
@@ -101,6 +122,7 @@ export async function synthesize(
     text,
     speed,
     dtype,
+    device,
   }));
 
   return {
@@ -115,10 +137,14 @@ export async function synthesize(
  * Warm the model so the next `synthesize()` call doesn't pay the
  * download cost. Safe to call repeatedly.
  */
-export async function preloadModel(dtype: ModelDtype = "q8"): Promise<void> {
+export async function preloadModel(
+  dtype: ModelDtype = "q8",
+  device: ModelDevice = "wasm",
+): Promise<void> {
   await sendRequest<Extract<WorkerResponse, { type: "ack" }>>((id) => ({
     id,
     type: "preload",
     dtype,
+    device,
   }));
 }

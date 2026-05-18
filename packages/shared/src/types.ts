@@ -77,6 +77,9 @@ export interface TtsSettings {
   defaultVoice: string;
   /** Kokoro ONNX quantization. Full-precision (fp32) is too large for browsers. */
   defaultDtype: "q4" | "q8" | "fp16";
+  /** Run Kokoro inference on the WebGPU backend when the browser supports it.
+   *  Falls back to WASM if `navigator.gpu` is unavailable. */
+  useWebGPU: boolean;
   /** If true, the model starts downloading on app mount instead of on first Generate. */
   preloadOnAppLoad: boolean;
 }

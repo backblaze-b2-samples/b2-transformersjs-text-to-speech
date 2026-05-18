@@ -22,6 +22,7 @@ const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 const LONG_TEXT_THRESHOLD = 400;
 
 type ModelDtype = "q8" | "q4" | "fp16";
+type ModelDevice = "wasm" | "webgpu";
 
 interface SynthesizeRequest {
   id: number;
@@ -30,12 +31,14 @@ interface SynthesizeRequest {
   text: string;
   speed: number;
   dtype: ModelDtype;
+  device: ModelDevice;
 }
 
 interface PreloadRequest {
   id: number;
   type: "preload";
   dtype: ModelDtype;
+  device: ModelDevice;
 }
 
 export type WorkerRequest = SynthesizeRequest | PreloadRequest;
@@ -60,13 +63,24 @@ interface ErrorResponse {
 
 export type WorkerResponse = SynthesizeResponse | AckResponse | ErrorResponse;
 
-const pipelineCache = new Map<ModelDtype, Promise<KokoroTTS>>();
+// Cache pipelines per (dtype, device). Switching either dimension
+// means a new ONNX session — keying the cache by both keeps the user's
+// previous pick warm if they toggle back.
+const pipelineCache = new Map<string, Promise<KokoroTTS>>();
 
-function getPipeline(dtype: ModelDtype): Promise<KokoroTTS> {
-  let cached = pipelineCache.get(dtype);
+function pipelineCacheKey(dtype: ModelDtype, device: ModelDevice): string {
+  return `${dtype}|${device}`;
+}
+
+function getPipeline(
+  dtype: ModelDtype,
+  device: ModelDevice,
+): Promise<KokoroTTS> {
+  const key = pipelineCacheKey(dtype, device);
+  let cached = pipelineCache.get(key);
   if (!cached) {
-    cached = KokoroTTS.from_pretrained(MODEL_ID, { dtype, device: "wasm" });
-    pipelineCache.set(dtype, cached);
+    cached = KokoroTTS.from_pretrained(MODEL_ID, { dtype, device });
+    pipelineCache.set(key, cached);
   }
   return cached;
 }
@@ -74,7 +88,7 @@ function getPipeline(dtype: ModelDtype): Promise<KokoroTTS> {
 async function runSynthesize(
   req: SynthesizeRequest,
 ): Promise<{ samples: Float32Array; sampleRate: number }> {
-  const tts = await getPipeline(req.dtype);
+  const tts = await getPipeline(req.dtype, req.device);
 
   if (req.text.length <= LONG_TEXT_THRESHOLD) {
     const audio = await tts.generate(req.text, {
@@ -134,7 +148,7 @@ self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
       (err) => postError(req.id, err),
     );
   } else if (req.type === "preload") {
-    getPipeline(req.dtype).then(
+    getPipeline(req.dtype, req.device).then(
       () => {
         const response: AckResponse = { id: req.id, type: "ack" };
         self.postMessage(response);
