@@ -50,6 +50,26 @@ def test_startup_validation_rejects_missing_consumed_standard_var():
         validate_b2_startup_settings(settings)
 
 
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    [
+        ({"b2_region": "evil.com/"}, "Invalid B2_REGION"),
+        (
+            {
+                "b2_region": "",
+                "b2_endpoint": "https://s3.aa..bbb-001.backblazeb2.com",
+            },
+            "Invalid B2_ENDPOINT",
+        ),
+    ],
+)
+def test_startup_validation_wraps_invalid_b2_destination(overrides, expected):
+    settings = _valid_settings(**overrides)
+
+    with pytest.raises(RuntimeError, match=f"Invalid B2 configuration: {expected}"):
+        validate_b2_startup_settings(settings)
+
+
 def test_settings_accepts_legacy_env_aliases(tmp_path, monkeypatch):
     _clear_b2_env(monkeypatch)
     env_file = _write_env(
