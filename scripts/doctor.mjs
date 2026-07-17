@@ -28,16 +28,17 @@ const REQUIRED_PYTHON_MINOR = 11; // 3.11+
 // .env.example. Keep in sync with services/api/main.py REQUIRED_B2_SETTINGS
 // and PLACEHOLDER_VALUES.
 const REQUIRED_B2_VARS = [
-  "B2_ENDPOINT",
-  "B2_REGION",
-  "B2_KEY_ID",
+  "B2_APPLICATION_KEY_ID",
   "B2_APPLICATION_KEY",
   "B2_BUCKET_NAME",
+  "B2_REGION",
+  "B2_PUBLIC_URL_BASE",
 ];
 const PLACEHOLDERS = new Set([
-  "your_key_id",
+  "your_application_key_id",
   "your_application_key",
   "your-bucket-name",
+  "https://f004.backblazeb2.com/file/your-bucket-name",
 ]);
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,

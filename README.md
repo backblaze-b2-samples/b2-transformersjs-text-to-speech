@@ -68,12 +68,15 @@ cp .env.example .env
 Fill it in:
 
 ```
-B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com
-B2_REGION=us-west-004
-B2_KEY_ID=your-key-id
+B2_APPLICATION_KEY_ID=your-key-id
 B2_APPLICATION_KEY=your-key
 B2_BUCKET_NAME=your-bucket
+B2_REGION=us-west-004
+B2_PUBLIC_URL_BASE=https://f004.backblazeb2.com/file/your-bucket
 ```
+
+The API derives the S3-compatible endpoint from `B2_REGION`; `B2_PUBLIC_URL_BASE`
+is the bucket's public file URL root used by the standard B2 sample configuration.
 
 ### 3. Run
 

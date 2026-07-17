@@ -32,20 +32,21 @@ CORS_RULES_FILE = REPO_ROOT / "b2CorsRules.json"
 # line, so misconfiguration is obvious within seconds rather than turning
 # into mysterious 500s on the first request.
 REQUIRED_B2_SETTINGS = (
-    ("b2_endpoint", "B2_ENDPOINT"),
-    ("b2_region", "B2_REGION"),
-    ("b2_key_id", "B2_KEY_ID"),
+    ("b2_application_key_id", "B2_APPLICATION_KEY_ID"),
     ("b2_application_key", "B2_APPLICATION_KEY"),
     ("b2_bucket_name", "B2_BUCKET_NAME"),
+    ("b2_region", "B2_REGION"),
+    ("b2_public_url_base", "B2_PUBLIC_URL_BASE"),
 )
 
 # Exact placeholder strings shipped in .env.example. If a user copied
 # the example and didn't edit it, Settings will pass the "non-empty"
 # check above but every B2 call will still 403. Catch that here.
 PLACEHOLDER_VALUES = frozenset({
-    "your_key_id",
+    "your_application_key_id",
     "your_application_key",
     "your-bucket-name",
+    "https://f004.backblazeb2.com/file/your-bucket-name",
 })
 
 
