@@ -35,6 +35,7 @@ const LEGACY_PLACEHOLDERS = [
   "your-key",
   "your-bucket",
 ];
+const B2_REGION_RE = /^[a-z]{2}(?:-[a-z]+)+-\d{3}$/;
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,
 // so warning about 8000 here would just duplicate dev.sh's own banner.
@@ -163,6 +164,39 @@ function envKeysFor(requiredKey) {
   return [requiredKey, ...(LEGACY_B2_ALIASES[requiredKey] ?? [])];
 }
 
+function isValidB2Region(region) {
+  return B2_REGION_RE.test(region);
+}
+
+function isValidLegacyB2Endpoint(endpoint) {
+  let url;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    return false;
+  }
+
+  const prefix = "s3.";
+  const suffix = ".backblazeb2.com";
+  if (!url.hostname.startsWith(prefix) || !url.hostname.endsWith(suffix)) {
+    return false;
+  }
+
+  const region = url.hostname.slice(prefix.length, -suffix.length);
+  return isValidB2Region(region);
+}
+
 function checkEnv() {
   if (!existsSync(ENV_FILE)) {
     fail(
@@ -192,6 +226,21 @@ function checkEnv() {
     fail(
       `.env still has placeholder values: ${placeholderKeys.join(", ")}`,
       "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm)",
+    );
+  }
+  if (env.B2_REGION && !isValidB2Region(env.B2_REGION)) {
+    fail(
+      `.env has invalid B2_REGION: ${env.B2_REGION}`,
+      "Use a B2 region token such as `us-west-004`",
+    );
+  } else if (
+    !env.B2_REGION &&
+    env.B2_ENDPOINT &&
+    !isValidLegacyB2Endpoint(env.B2_ENDPOINT)
+  ) {
+    fail(
+      `.env has invalid B2_ENDPOINT: ${env.B2_ENDPOINT}`,
+      "Use a B2 S3 endpoint like `https://s3.us-west-004.backblazeb2.com`",
     );
   }
 }
