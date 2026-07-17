@@ -29,6 +29,12 @@ const LEGACY_B2_ALIASES = {
   B2_APPLICATION_KEY_ID: ["B2_KEY_ID"],
   B2_REGION: ["B2_ENDPOINT"],
 };
+const LEGACY_PLACEHOLDERS = [
+  "your_key_id",
+  "your-key-id",
+  "your-key",
+  "your-bucket",
+];
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,
 // so warning about 8000 here would just duplicate dev.sh's own banner.
@@ -149,7 +155,7 @@ function placeholderValues() {
   const exampleValues = Object.values(parseEnvFile(ENV_EXAMPLE_FILE));
   return new Set([
     ...exampleValues.filter((value) => value.includes("your_") || value.includes("your-")),
-    "your_key_id",
+    ...LEGACY_PLACEHOLDERS,
   ]);
 }
 

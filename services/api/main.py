@@ -45,8 +45,11 @@ REQUIRED_B2_SETTINGS = (
 PLACEHOLDER_VALUES = frozenset({
     "your_application_key_id",
     "your_key_id",
+    "your-key-id",
     "your_application_key",
+    "your-key",
     "your-bucket-name",
+    "your-bucket",
 })
 
 

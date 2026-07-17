@@ -164,8 +164,20 @@ def test_invalid_region_prevents_s3_client_construction(monkeypatch):
         b2_client.get_s3_client.cache_clear()
 
 
-def test_placeholder_values_fail_startup_validation():
-    settings = _valid_settings(b2_application_key_id="your_application_key_id")
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"b2_application_key_id": "your_application_key_id"},
+        {"b2_application_key_id": "your_key_id"},
+        {"b2_application_key_id": "your-key-id"},
+        {"b2_application_key": "your_application_key"},
+        {"b2_application_key": "your-key"},
+        {"b2_bucket_name": "your-bucket-name"},
+        {"b2_bucket_name": "your-bucket"},
+    ],
+)
+def test_placeholder_values_fail_startup_validation(overrides):
+    settings = _valid_settings(**overrides)
 
     with pytest.raises(RuntimeError, match="placeholder values"):
         validate_b2_startup_settings(settings)
