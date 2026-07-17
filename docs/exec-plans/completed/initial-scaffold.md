@@ -26,8 +26,10 @@ and applying the architecture delta documented below.
 
 This sample uses the current b2-doctor-compliant environment names:
 `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`,
-`B2_REGION`, and `B2_PUBLIC_URL_BASE`. The S3-compatible endpoint is
-derived from `B2_REGION`, so there is no separate endpoint variable.
+and `B2_REGION`. The S3-compatible endpoint is derived from
+`B2_REGION`, so there is no separate endpoint variable. `B2_PUBLIC_URL_BASE`
+is documented as optional/informational because this app returns
+short-lived signed URLs for playback and download.
 
 The standardized names are applied across `.env.example`,
 `services/api/app/config/settings.py`, all docs, and `scripts/doctor.mjs`.

@@ -1,24 +1,137 @@
 """Tests for standardized B2 configuration."""
 
+import pytest
+
 from app.config.settings import Settings
 from app.repo import b2_client
-from main import REQUIRED_B2_SETTINGS
+from main import validate_b2_startup_settings
+
+B2_ENV_KEYS = (
+    "B2_APPLICATION_KEY_ID",
+    "B2_KEY_ID",
+    "B2_APPLICATION_KEY",
+    "B2_BUCKET_NAME",
+    "B2_REGION",
+    "B2_ENDPOINT",
+    "B2_PUBLIC_URL_BASE",
+)
 
 
-def test_required_b2_settings_use_standard_env_names():
-    assert REQUIRED_B2_SETTINGS == (
-        ("b2_application_key_id", "B2_APPLICATION_KEY_ID"),
-        ("b2_application_key", "B2_APPLICATION_KEY"),
-        ("b2_bucket_name", "B2_BUCKET_NAME"),
-        ("b2_region", "B2_REGION"),
-        ("b2_public_url_base", "B2_PUBLIC_URL_BASE"),
+def _valid_settings(**overrides) -> Settings:
+    values = {
+        "b2_application_key_id": "key-id",
+        "b2_application_key": "key",
+        "b2_bucket_name": "bucket",
+        "b2_region": "aa-bbb-001",
+    }
+    values.update(overrides)
+    return Settings(**values)
+
+
+def _write_env(tmp_path, content: str):
+    env_file = tmp_path / ".env"
+    env_file.write_text(content)
+    return env_file
+
+
+def _clear_b2_env(monkeypatch):
+    for key in B2_ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_startup_validation_accepts_consumed_standard_vars():
+    validate_b2_startup_settings(_valid_settings())
+
+
+def test_startup_validation_rejects_missing_consumed_standard_var():
+    settings = _valid_settings(b2_application_key_id="")
+
+    with pytest.raises(RuntimeError, match="B2_APPLICATION_KEY_ID"):
+        validate_b2_startup_settings(settings)
+
+
+def test_settings_accepts_legacy_env_aliases(tmp_path, monkeypatch):
+    _clear_b2_env(monkeypatch)
+    env_file = _write_env(
+        tmp_path,
+        "\n".join(
+            [
+                "B2_KEY_ID=legacy-key-id",
+                "B2_APPLICATION_KEY=key",
+                "B2_BUCKET_NAME=bucket",
+                "B2_ENDPOINT=https://s3.aa-bbb-001.backblazeb2.com",
+            ]
+        ),
     )
+    settings = Settings(_env_file=env_file)
+
+    validate_b2_startup_settings(settings)
+    assert settings.b2_application_key_id == "legacy-key-id"
+    assert settings.b2_effective_region == "aa-bbb-001"
+    assert settings.b2_s3_endpoint_url == "https://s3.aa-bbb-001.backblazeb2.com"
 
 
-def test_settings_derives_s3_endpoint_from_region():
-    settings = Settings(b2_region="sample-region")
+def test_new_env_values_take_precedence_when_both_present(tmp_path, monkeypatch):
+    _clear_b2_env(monkeypatch)
+    env_file = _write_env(
+        tmp_path,
+        "\n".join(
+            [
+                "B2_APPLICATION_KEY_ID=new-key-id",
+                "B2_KEY_ID=legacy-key-id",
+                "B2_APPLICATION_KEY=key",
+                "B2_BUCKET_NAME=bucket",
+                "B2_REGION=aa-bbb-001",
+                "B2_ENDPOINT=https://s3.cc-ddd-002.backblazeb2.com",
+                "B2_PUBLIC_URL_BASE=https://f004.backblazeb2.com/file/bucket",
+            ]
+        ),
+    )
+    settings = Settings(_env_file=env_file)
 
-    assert settings.b2_s3_endpoint_url == "https://s3.sample-region.backblazeb2.com"
+    validate_b2_startup_settings(settings)
+    assert settings.b2_application_key_id == "new-key-id"
+    assert settings.b2_effective_region == "aa-bbb-001"
+    assert settings.b2_s3_endpoint_url == "https://s3.aa-bbb-001.backblazeb2.com"
+
+
+@pytest.mark.parametrize(
+    "region",
+    [
+        "evil.attacker.com/",
+        "aa-bbb-001@evil.example",
+        "aa-bbb-001/path",
+        " aa-bbb-001",
+        "aa..bbb-001",
+    ],
+)
+def test_malformed_region_is_rejected(region):
+    settings = _valid_settings(b2_region=region)
+
+    with pytest.raises(ValueError, match="Invalid B2_REGION"):
+        _ = settings.b2_s3_endpoint_url
+
+
+def test_invalid_region_prevents_s3_client_construction(monkeypatch):
+    def fail_boto3_client(*_args, **_kwargs):
+        raise AssertionError("boto3.client should not be called")
+
+    monkeypatch.setattr(b2_client, "settings", _valid_settings(b2_region="evil.com/"))
+    monkeypatch.setattr(b2_client.boto3, "client", fail_boto3_client)
+    b2_client.get_s3_client.cache_clear()
+
+    try:
+        with pytest.raises(ValueError, match="Invalid B2_REGION"):
+            b2_client.get_s3_client()
+    finally:
+        b2_client.get_s3_client.cache_clear()
+
+
+def test_placeholder_values_fail_startup_validation():
+    settings = _valid_settings(b2_application_key_id="your_application_key_id")
+
+    with pytest.raises(RuntimeError, match="placeholder values"):
+        validate_b2_startup_settings(settings)
 
 
 def test_s3_client_uses_application_key_id_and_custom_user_agent(monkeypatch):
@@ -34,8 +147,7 @@ def test_s3_client_uses_application_key_id_and_custom_user_agent(monkeypatch):
         b2_application_key_id="key-id",
         b2_application_key="key",
         b2_bucket_name="bucket",
-        b2_region="sample-region",
-        b2_public_url_base="https://f004.backblazeb2.com/file/bucket",
+        b2_region="aa-bbb-001",
     )
     monkeypatch.setattr(b2_client, "settings", settings)
     monkeypatch.setattr(b2_client.boto3, "client", fake_boto3_client)
@@ -48,8 +160,10 @@ def test_s3_client_uses_application_key_id_and_custom_user_agent(monkeypatch):
 
     assert client is fake_client
     assert captured["service_name"] == "s3"
-    assert captured["endpoint_url"] == "https://s3.sample-region.backblazeb2.com"
-    assert captured["region_name"] == "sample-region"
+    assert captured["endpoint_url"] == "https://s3.aa-bbb-001.backblazeb2.com"
+    assert captured["region_name"] == "aa-bbb-001"
     assert captured["aws_access_key_id"] == "key-id"
     assert captured["aws_secret_access_key"] == "key"
-    assert captured["config"].user_agent_extra == b2_client._USER_AGENT_EXTRA
+    assert captured["config"].user_agent_extra == (
+        "b2-transformersjs-text-to-speech/0.1.0 (backblaze-b2-samples)"
+    )

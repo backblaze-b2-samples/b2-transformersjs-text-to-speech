@@ -28,8 +28,13 @@ Set these on the API service:
 | `B2_APPLICATION_KEY` | Your B2 application key |
 | `B2_BUCKET_NAME` | The bucket where generations are stored |
 | `B2_REGION` | The matching B2 region (e.g. `us-west-004`) |
-| `B2_PUBLIC_URL_BASE` | The bucket public file URL root (e.g. `https://f004.backblazeb2.com/file/your-bucket`) |
 | `API_CORS_ORIGINS` | The web service URL (e.g. `https://web-production-xxx.up.railway.app`) |
+
+Optional / informational:
+
+| Variable | Value |
+|----------|-------|
+| `B2_PUBLIC_URL_BASE` | The bucket public file URL root (e.g. `https://f004.backblazeb2.com/file/your-bucket`) |
 
 Set this on the Web service:
 

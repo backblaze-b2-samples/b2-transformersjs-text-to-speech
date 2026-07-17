@@ -17,7 +17,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
-from app.config import settings  # noqa: E402
+from app.config import Settings, settings  # noqa: E402
 from app.runtime import health, library, metrics, presign  # noqa: E402
 from app.service import cors as cors_service  # noqa: E402
 
@@ -32,31 +32,34 @@ CORS_RULES_FILE = REPO_ROOT / "b2CorsRules.json"
 # line, so misconfiguration is obvious within seconds rather than turning
 # into mysterious 500s on the first request.
 REQUIRED_B2_SETTINGS = (
-    ("b2_application_key_id", "B2_APPLICATION_KEY_ID"),
+    ("b2_application_key_id", "B2_APPLICATION_KEY_ID or legacy B2_KEY_ID"),
     ("b2_application_key", "B2_APPLICATION_KEY"),
     ("b2_bucket_name", "B2_BUCKET_NAME"),
-    ("b2_region", "B2_REGION"),
-    ("b2_public_url_base", "B2_PUBLIC_URL_BASE"),
+    ("b2_s3_endpoint_url", "B2_REGION or legacy B2_ENDPOINT"),
 )
 
-# Exact placeholder strings shipped in .env.example. If a user copied
-# the example and didn't edit it, Settings will pass the "non-empty"
-# check above but every B2 call will still 403. Catch that here.
+# Exact placeholder strings shipped in current and legacy examples. If
+# a user copied an example and didn't edit it, Settings will pass the
+# "non-empty" check above but every B2 call will still 403. Catch that
+# here.
 PLACEHOLDER_VALUES = frozenset({
     "your_application_key_id",
+    "your_key_id",
     "your_application_key",
     "your-bucket-name",
-    "https://f004.backblazeb2.com/file/your-bucket-name",
 })
 
 
-@asynccontextmanager
-async def lifespan(_app: "FastAPI"):
-    missing = [
-        env_name
-        for attr, env_name in REQUIRED_B2_SETTINGS
-        if not getattr(settings, attr)
-    ]
+def validate_b2_startup_settings(config: Settings = settings) -> None:
+    try:
+        missing = [
+            env_name
+            for attr, env_name in REQUIRED_B2_SETTINGS
+            if not getattr(config, attr)
+        ]
+    except ValueError as e:
+        raise RuntimeError(f"Invalid B2 configuration: {e}") from e
+
     if missing:
         raise RuntimeError(
             "Missing required B2 configuration: "
@@ -67,7 +70,7 @@ async def lifespan(_app: "FastAPI"):
     placeholders = [
         env_name
         for attr, env_name in REQUIRED_B2_SETTINGS
-        if getattr(settings, attr) in PLACEHOLDER_VALUES
+        if getattr(config, attr) in PLACEHOLDER_VALUES
     ]
     if placeholders:
         raise RuntimeError(
@@ -75,6 +78,11 @@ async def lifespan(_app: "FastAPI"):
             + ", ".join(placeholders)
             + f". Edit {REPO_ROOT_ENV} with your real B2 credentials and restart."
         )
+
+
+@asynccontextmanager
+async def lifespan(_app: "FastAPI"):
+    validate_b2_startup_settings()
 
     # Browser → B2 direct PUTs need a CORSRule on the bucket. Apply it at
     # startup so a fresh clone "just works" after `pnpm dev` without an
