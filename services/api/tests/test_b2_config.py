@@ -112,6 +112,23 @@ def test_malformed_region_is_rejected(region):
         _ = settings.b2_s3_endpoint_url
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://s3.aa-bbb-001.backblazeb2.com",
+        "https://s3.aa-bbb-001.backblazeb2.com/path",
+        "https://s3.aa-bbb-001@evil.example/.backblazeb2.com",
+        "https://evil.example",
+        "https://s3.aa..bbb-001.backblazeb2.com",
+    ],
+)
+def test_malformed_legacy_endpoint_is_rejected(endpoint):
+    settings = _valid_settings(b2_region="", b2_endpoint=endpoint)
+
+    with pytest.raises(ValueError, match="Invalid B2_ENDPOINT"):
+        _ = settings.b2_s3_endpoint_url
+
+
 def test_invalid_region_prevents_s3_client_construction(monkeypatch):
     def fail_boto3_client(*_args, **_kwargs):
         raise AssertionError("boto3.client should not be called")

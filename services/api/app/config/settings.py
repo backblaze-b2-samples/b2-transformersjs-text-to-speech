@@ -34,7 +34,10 @@ def _region_from_legacy_endpoint(endpoint: str) -> str:
     if not (host.startswith(prefix) and host.endswith(suffix)):
         raise ValueError(f"Invalid B2_ENDPOINT: {endpoint!r}")
 
-    return _validate_b2_region(host[len(prefix) : -len(suffix)])
+    try:
+        return _validate_b2_region(host[len(prefix) : -len(suffix)])
+    except ValueError as e:
+        raise ValueError(f"Invalid B2_ENDPOINT: {endpoint!r}") from e
 
 
 class Settings(BaseSettings):
