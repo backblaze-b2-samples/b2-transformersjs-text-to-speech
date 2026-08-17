@@ -162,7 +162,6 @@ export function SynthesizeForm() {
         {audioUrl && (
           <div className="space-y-2">
             <Label>Preview</Label>
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption -- generated TTS */}
             <audio controls src={audioUrl} className="w-full" />
           </div>
         )}

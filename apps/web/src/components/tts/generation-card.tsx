@@ -98,7 +98,6 @@ export function GenerationCard({ generation }: GenerationCardProps) {
           <Waveform durationMs={generation.duration_ms} />
 
           {audioSrc ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption -- generated TTS audio
             <audio controls src={audioSrc} className="w-full" autoPlay />
           ) : (
             <div className="flex items-center gap-2">
