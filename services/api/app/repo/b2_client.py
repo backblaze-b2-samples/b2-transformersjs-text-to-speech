@@ -38,14 +38,13 @@ def get_s3_client():
     """Return a process-singleton S3 client configured for B2.
 
     The region is sourced from `B2_REGION` — never hardcoded — so the
-    same image can run against `us-west-004`, `eu-central-003`, etc.
-    without code changes.
+    same image can run against any B2 region without code changes.
     """
     return boto3.client(
         "s3",
-        endpoint_url=settings.b2_endpoint,
-        region_name=settings.b2_region,
-        aws_access_key_id=settings.b2_key_id,
+        endpoint_url=settings.b2_s3_endpoint_url,
+        region_name=settings.b2_effective_region,
+        aws_access_key_id=settings.b2_application_key_id,
         aws_secret_access_key=settings.b2_application_key,
         config=Config(
             signature_version="s3v4",

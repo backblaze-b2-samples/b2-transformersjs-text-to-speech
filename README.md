@@ -68,12 +68,17 @@ cp .env.example .env
 Fill it in:
 
 ```
-B2_ENDPOINT=https://s3.us-west-004.backblazeb2.com
+B2_APPLICATION_KEY_ID=your_application_key_id
+B2_APPLICATION_KEY=your_application_key
+B2_BUCKET_NAME=your-bucket-name
 B2_REGION=us-west-004
-B2_KEY_ID=your-key-id
-B2_APPLICATION_KEY=your-key
-B2_BUCKET_NAME=your-bucket
+# Optional / informational. Playback and download use signed URLs.
+# B2_PUBLIC_URL_BASE=https://f004.backblazeb2.com/file/your-bucket-name
 ```
+
+The API derives the S3-compatible endpoint from `B2_REGION`. For migrations,
+`B2_KEY_ID` and `B2_ENDPOINT` are still accepted as legacy fallbacks, with the
+new names taking precedence when both are present.
 
 ### 3. Run
 

@@ -6,7 +6,10 @@ Security principles and implementation for `b2-transformersjs-text-to-speech`.
 ## Trust boundaries
 
 - **Frontend -> API**: CORS-restricted to configured origins, scoped to `GET/POST/DELETE/OPTIONS`
-- **API -> B2**: Authenticated via `B2_KEY_ID` + `B2_APPLICATION_KEY`, signature v4
+- **API -> B2**: Authenticated via `B2_APPLICATION_KEY_ID` + `B2_APPLICATION_KEY`, signature v4
+- **B2 endpoint construction**: `B2_REGION` is validated before the
+  API derives the S3 host; legacy `B2_ENDPOINT` fallbacks must point at
+  `https://s3.<region>.backblazeb2.com`
 - **Browser -> B2 (direct)**: Short-lived presigned URLs only. The
   PUT URL signs `Content-Type` and every `x-amz-meta-*` header; the
   browser cannot change those without invalidating the signature.

@@ -22,21 +22,17 @@ and applying the architecture delta documented below.
 | `docs/SECURITY.md`, `docs/RELIABILITY.md`, `docs/design-system.md`, dev-workflows | starter-kit screenshots | `b2CorsRules.json` + `pnpm setup:cors` |
 | `infra/railway/` deployment config | server-proxy download route | `apps/web/public/models/.gitkeep` |
 
-## Env var migration
+## B2 environment configuration
 
-The starter kit ships `B2_S3_ENDPOINT` and `B2_APPLICATION_KEY_ID`,
-which are NOT b2-doctor-compliant. This sample renames them:
+This sample uses the current b2-doctor-compliant environment names:
+`B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`,
+and `B2_REGION`. The S3-compatible endpoint is derived from
+`B2_REGION`, so there is no separate endpoint variable. `B2_PUBLIC_URL_BASE`
+is documented as optional/informational because this app returns
+short-lived signed URLs for playback and download.
 
-| Starter kit | This sample |
-|---|---|
-| `B2_S3_ENDPOINT` | `B2_ENDPOINT` |
-| `B2_APPLICATION_KEY_ID` | `B2_KEY_ID` |
-| `B2_APPLICATION_KEY` | `B2_APPLICATION_KEY` (unchanged) |
-| `B2_BUCKET_NAME` | `B2_BUCKET_NAME` (unchanged) |
-| (none) | `B2_REGION` (new, required) |
-
-Applied across `.env.example`, `services/api/app/config/settings.py`,
-all docs, and `scripts/doctor.mjs`.
+The standardized names are applied across `.env.example`,
+`services/api/app/config/settings.py`, all docs, and `scripts/doctor.mjs`.
 
 ## Custom user agent
 

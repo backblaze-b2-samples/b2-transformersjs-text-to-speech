@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_FILE = resolve(REPO_ROOT, ".env");
+const ENV_EXAMPLE_FILE = resolve(REPO_ROOT, ".env.example");
 const VENV_UVICORN = resolve(REPO_ROOT, "services/api/.venv/bin/uvicorn");
 
 // Required minimum versions. Bump as upstream support shifts.
@@ -25,21 +26,17 @@ const REQUIRED_NODE_MINOR = 9;
 const REQUIRED_PNPM_MAJOR = 9;
 const REQUIRED_PYTHON_MINOR = 11; // 3.11+
 
-// Required B2 env vars + the exact placeholder strings shipped in
-// .env.example. Keep in sync with services/api/main.py REQUIRED_B2_SETTINGS
-// and PLACEHOLDER_VALUES.
-const REQUIRED_B2_VARS = [
-  "B2_ENDPOINT",
-  "B2_REGION",
-  "B2_KEY_ID",
-  "B2_APPLICATION_KEY",
-  "B2_BUCKET_NAME",
-];
-const PLACEHOLDERS = new Set([
+const LEGACY_B2_ALIASES = {
+  B2_APPLICATION_KEY_ID: ["B2_KEY_ID"],
+  B2_REGION: ["B2_ENDPOINT"],
+};
+const LEGACY_PLACEHOLDERS = [
   "your_key_id",
-  "your_application_key",
-  "your-bucket-name",
-]);
+  "your-key-id",
+  "your-key",
+  "your-bucket",
+];
+const B2_REGION_RE = /^[a-z]{2}(?:-[a-z]+)+-\d{3}$/;
 
 // Only Next.js: `pnpm dev` self-heals the API side via scripts/pick-port.mjs,
 // so warning about 8000 here would just duplicate dev.sh's own banner.
@@ -149,6 +146,58 @@ function parseEnvFile(path) {
   return out;
 }
 
+function requiredB2Vars() {
+  // .env.example is the setup-contract source for required B2 names.
+  return Object.keys(parseEnvFile(ENV_EXAMPLE_FILE)).filter((key) =>
+    key.startsWith("B2_"),
+  );
+}
+
+function placeholderValues() {
+  const exampleValues = Object.values(parseEnvFile(ENV_EXAMPLE_FILE));
+  return new Set([
+    ...exampleValues.filter((value) => value.includes("your_") || value.includes("your-")),
+    ...LEGACY_PLACEHOLDERS,
+  ]);
+}
+
+function envKeysFor(requiredKey) {
+  return [requiredKey, ...(LEGACY_B2_ALIASES[requiredKey] ?? [])];
+}
+
+function isValidB2Region(region) {
+  return B2_REGION_RE.test(region);
+}
+
+function isValidLegacyB2Endpoint(endpoint) {
+  let url;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    return false;
+  }
+
+  const prefix = "s3.";
+  const suffix = ".backblazeb2.com";
+  if (!url.hostname.startsWith(prefix) || !url.hostname.endsWith(suffix)) {
+    return false;
+  }
+
+  const region = url.hostname.slice(prefix.length, -suffix.length);
+  return isValidB2Region(region);
+}
+
 function checkEnv() {
   if (!existsSync(ENV_FILE)) {
     fail(
@@ -158,20 +207,41 @@ function checkEnv() {
     return;
   }
   const env = parseEnvFile(ENV_FILE);
-  const missing = REQUIRED_B2_VARS.filter((k) => !env[k]);
+  const required = requiredB2Vars();
+  const placeholders = placeholderValues();
+  const missing = required.filter((key) =>
+    !envKeysFor(key).some((candidate) => env[candidate]),
+  );
   if (missing.length > 0) {
     fail(
       `.env is missing required B2 variables: ${missing.join(", ")}`,
       "See .env.example for the full list and edit .env to add them",
     );
   }
-  const placeholders = REQUIRED_B2_VARS.filter(
-    (k) => env[k] && PLACEHOLDERS.has(env[k]),
+  const placeholderKeys = required.filter(
+    (key) => envKeysFor(key).some(
+      (candidate) => env[candidate] && placeholders.has(env[candidate]),
+    ),
   );
-  if (placeholders.length > 0) {
+  if (placeholderKeys.length > 0) {
     fail(
-      `.env still has placeholder values: ${placeholders.join(", ")}`,
+      `.env still has placeholder values: ${placeholderKeys.join(", ")}`,
       "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm)",
+    );
+  }
+  if (env.B2_REGION && !isValidB2Region(env.B2_REGION)) {
+    fail(
+      `.env has invalid B2_REGION: ${env.B2_REGION}`,
+      "Use a B2 region token such as `us-west-004`",
+    );
+  } else if (
+    !env.B2_REGION &&
+    env.B2_ENDPOINT &&
+    !isValidLegacyB2Endpoint(env.B2_ENDPOINT)
+  ) {
+    fail(
+      `.env has invalid B2_ENDPOINT: ${env.B2_ENDPOINT}`,
+      "Use a B2 S3 endpoint like `https://s3.us-west-004.backblazeb2.com`",
     );
   }
 }

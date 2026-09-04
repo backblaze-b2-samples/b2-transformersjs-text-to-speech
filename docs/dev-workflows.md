@@ -73,6 +73,14 @@ CORS error until this is run on a freshly-created bucket. The script
 fails fast with a readable error if the application key lacks
 `writeBucketCors`.
 
+## B2 environment contract
+
+`.env.example` is the setup-contract source for required B2 variable
+names consumed by `scripts/doctor.mjs`. Runtime validation in
+`services/api/main.py` mirrors only the values the API actually uses
+and accepts legacy `B2_KEY_ID` / `B2_ENDPOINT` fallbacks for migrations.
+Update the backend config tests when this contract changes.
+
 ## Frontend conventions
 
 - Tailwind v4: config via CSS `@theme` blocks, NOT `tailwind.config.ts`
